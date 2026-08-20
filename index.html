@@ -1,0 +1,1440 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard Monitoring Anggaran SKKI</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<!-- Stylesheet aplikasi -->
+<link rel="stylesheet" href="style.css">
+
+<!-- Style tambahan untuk toggle "Per Program / Per PRK/POS" pada chart Proporsi Pagu (tidak mengubah style.css) -->
+<style>
+  .proporsi-toggle { display:flex; gap:8px; margin:-6px 0 14px; flex-wrap:wrap; }
+  .proporsi-toggle-btn {
+    padding:6px 13px; border-radius:20px; border:1px solid #d7dee8; background:#fff;
+    color:#51607a; font-size:12px; font-weight:600; cursor:pointer; transition:.15s;
+    font-family:inherit;
+  }
+  .proporsi-toggle-btn:hover { border-color:#0b4da2; color:#0b4da2; }
+  .proporsi-toggle-btn.active { background:#0b4da2; border-color:#0b4da2; color:#fff; }
+</style>
+
+<!-- Chart.js lokal: tidak tergantung akses ke CDN/internet pengguna -->
+<script src="assets/chart.umd.min.js"></script>
+
+<!-- SheetJS (export ke Excel) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<!-- PapaParse (untuk mode CSV tanpa Apps Script, lihat MAIN_SHEET_CSV di api.js) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+
+<!-- jsPDF + AutoTable (export ke PDF) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+
+
+</head>
+<body>
+
+<div class="app-shell" id="appShell">
+
+  <!-- Backdrop untuk sidebar mobile -->
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+  <!-- ============================= SIDEBAR ============================= -->
+  <aside class="sidebar" id="sidebar">
+    <!-- App Switcher: pilih dashboard -->
+    <button class="app-switcher-btn" id="appSwitcherBtn" aria-label="Pilih dashboard">
+      <span id="currentAppLabel" title="SKKI — Anggaran &amp; Realisasi">SKKI — Anggaran &amp; Realisasi</span>
+      <svg class="app-switcher-caret" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+    </button>
+
+    <div class="sidebar-brand">
+      <img src="assets/logo.svg" alt="Logo SKKI">
+      <div class="sidebar-brand-text">
+        <strong>PLN UP3 CIREBON </strong>
+        <span>Divisi Perencanaan</span>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+    <!-- ======================= NAV GROUP: SKKI (existing) ======================= -->
+    <div class="app-nav-group" data-app="skki">
+      <div class="sidebar-section-label">Menu Utama</div>
+
+      <div class="nav-group">
+        <div class="nav-item-parent">
+          <button class="nav-item active" data-page="dashboard">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+            <span class="nav-label">SKKI 2026</span>
+          </button>
+          <button class="nav-submenu-toggle open" id="toggleDashboardSubmenu" aria-label="Buka/tutup anak halaman Dashboard Home">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+          </button>
+        </div>
+        <div class="nav-submenu open" id="dashboardSubmenu">
+          <button class="nav-item nav-item-sub" data-page="dashboard-murni">
+            <span class="nav-label">AI Murni 2026</span>
+          </button>
+          <button class="nav-item nav-item-sub" data-page="dashboard-lanjutan">
+            <span class="nav-label"> AI Lanjutan 2025</span>
+          </button>
+        </div>
+      </div>
+
+      <button class="nav-item" data-page="arsip">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="5" rx="1.5"/><path d="M4 8v11a1.5 1.5 0 0 0 1.5 1.5h13A1.5 1.5 0 0 0 20 19V8"/><path d="M10 12h4"/></svg>
+        <span class="nav-label" id="navArsipLabel">Arsip</span>
+      </button>
+
+      <button class="nav-item" data-page="monitoring">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 4v16"/></svg>
+        <span class="nav-label">Monitoring Data</span>
+      </button>
+
+      <button class="nav-item" data-page="progress-ai">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg>
+        <span class="nav-label">Progress AI</span>
+      </button>
+
+      <button class="nav-item" data-page="rekap-unit">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M6 21V9l6-4 6 4v12M10 21v-6h4v6"/></svg>
+        <span class="nav-label">Rekap Unit</span>
+      </button>
+
+      <button class="nav-item" data-page="rekap-program">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        <span class="nav-label">Rekap Program</span>
+      </button>
+
+      <button class="nav-item" data-page="grafik">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg>
+        <span class="nav-label">Grafik</span>
+      </button>
+
+      <button class="nav-item" data-page="laporan">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h6M9 9h1"/></svg>
+        <span class="nav-label">Laporan</span>
+      </button>
+
+    </div>
+    <!-- ======================= /NAV GROUP: SKKI ======================= -->
+
+    <!-- ======================= NAV GROUP: KPI MONITORING UP3 CIREBON ======================= -->
+    <div class="app-nav-group" data-app="kpi" style="display:none">
+      <div class="sidebar-section-label">KPI Monitoring UP3 Cirebon</div>
+
+      <button class="nav-item" data-page="kpi-overview">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+        <span class="nav-label">Overview</span>
+      </button>
+
+      <button class="nav-item" data-page="kpi-indikator">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg>
+        <span class="nav-label">Per Indikator KPI</span>
+      </button>
+
+      <button class="nav-item" data-page="kpi-ulp">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M6 21V9l6-4 6 4v12M10 21v-6h4v6"/></svg>
+        <span class="nav-label">Per Unit</span>
+      </button>
+
+      <button class="nav-item" data-page="kpi-banding">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        <span class="nav-label">Perbandingan ULP</span>
+      </button>
+
+      <button class="nav-item" data-page="kpi-pengusahaan">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg>
+        <span class="nav-label">Data Pengusahaan</span>
+      </button>
+    </div>
+    <!-- ======================= /NAV GROUP: KPI ======================= -->
+
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="sidebar-live-status kpi-conn-badge" id="kpiConnBadge" hidden>
+        <span class="dot"></span>
+        <div>
+          <span class="sidebar-live-label">Status data KPI</span>
+          <span class="kpi-conn-text">Memuat data live</span>
+        </div>
+      </div>
+      <div class="sidebar-copyright">© 2026</div>
+    </div>
+  </aside>
+
+  <!-- ============================ MAIN WRAPPER ============================ -->
+  <div class="main-wrapper">
+
+    <!-- ============================= NAVBAR ============================= -->
+    <header class="navbar">
+      <div class="navbar-left">
+        <button class="navbar-toggle" id="sidebarToggle" aria-label="Buka/tutup sidebar">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <div class="navbar-title">
+          <h1 id="pageTitle">Dashboard Home</h1>
+          <p id="pageSubtitle">Ringkasan monitoring anggaran SKKI</p>
+        </div>
+      </div>
+
+      <div class="navbar-right">
+        <span class="connection-badge" id="connectionBadge">
+          <span class="dot"></span>
+          <span id="connectionText">Belum Terhubung</span>
+        </span>
+
+        <button class="navbar-refresh" id="refreshBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+          <span>Muat Ulang</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- ============================= FILTER GLOBAL KPI ============================= -->
+    <!-- Dropdown ULP sengaja dihapus dari sini: halaman Overview memang selalu
+         menampilkan SEMUA ULP sekaligus (peta, ranking NKO, stacked bar per
+         ULP), jadi tidak perlu filter 1-ULP di halaman ini. Filter per-ULP
+         tetap ada di halaman "Per ULP" (dropdown sendiri di sana). -->
+    <div class="kpi-filter-bar" id="kpiFilterBar" style="display:none">
+      <div class="kpi-filter-group">
+        <label>Periode / Bulan</label>
+        <select class="filter-select" id="kpiFilterBulan"></select>
+      </div>
+    </div>
+
+    <!-- ============================= KONTEN ============================= -->
+    <main class="content">
+
+      <!-- ======================= PAGE: DASHBOARD HOME ======================= -->
+      <section class="page active" id="page-dashboard">
+        <div class="page-header">
+          <div>
+            <h2>Ringkasan Anggaran SKKI <span class="kategori-badge badge-realtime" id="berjalanHeaderBadge">2025–2026 · Berjalan</span></h2>
+          </div>
+          <div class="page-actions">
+            <select class="filter-select" id="filterKategoriHome">
+              <option value="">Semua Kategori (Murni + Lanjutan)</option>
+              <option value="Murni">Hanya Murni</option>
+              <option value="Lanjutan">Hanya Lanjutan</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Card Summary -->
+        <div class="summary-grid" id="summaryGrid">
+          <div class="summary-card card-pagu">
+            <div class="summary-card-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            </div>
+            <div class="summary-card-label">Total Pagu</div>
+            <div class="summary-card-value" id="statTotalPagu">Rp 0</div>
+            <div class="summary-card-sub">Seluruh anggaran yang dialokasikan</div>
+          </div>
+
+          <div class="summary-card card-jumlah">
+            <div class="summary-card-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg>
+            </div>
+            <div class="summary-card-label">Total AI Terkontrak</div>
+            <div class="summary-card-value" id="statTotalKontrak">Rp 0</div>
+            <div class="summary-card-sub">Nilai yang sudah terkontrak</div>
+          </div>
+
+          <div class="summary-card card-info">
+            <div class="summary-card-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+            </div>
+            <div class="summary-card-label">Total Tertagih</div>
+            <div class="summary-card-value" id="statTotalTertagih">Rp 0</div>
+            <div class="summary-card-sub">Nilai yang sudah ditagihkan</div>
+          </div>
+
+          <div class="summary-card card-realisasi">
+            <div class="summary-card-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+            </div>
+            <div class="summary-card-label">Total Realisasi</div>
+            <div class="summary-card-value" id="statTotalRealisasi">Rp 0</div>
+            <div class="summary-card-sub">Total dana yang telah terbayar</div>
+          </div>
+
+          <div class="summary-card card-sisa">
+            <div class="summary-card-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+            </div>
+            <div class="summary-card-label">Sisa Anggaran</div>
+            <div class="summary-card-value" id="statSisaAnggaran">Rp 0</div>
+            <div class="summary-card-sub">Pagu dikurangi realisasi</div>
+          </div>
+
+          <div class="summary-card card-persen">
+            <div class="summary-card-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6"/><rect x="12" y="8" width="3" height="10"/><rect x="17" y="5" width="3" height="13"/></svg>
+            </div>
+            <div class="summary-card-label">Persentase Realisasi</div>
+            <div class="summary-card-value" id="statPersenRealisasi">0%</div>
+            <div class="summary-card-sub">Realisasi terhadap total pagu</div>
+          </div>
+
+          <div class="summary-card card-jumlah">
+            <div class="summary-card-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+            </div>
+            <div class="summary-card-label">Jumlah Data</div>
+            <div class="summary-card-value" id="statJumlahData">0</div>
+            <div class="summary-card-sub">Total baris item anggaran</div>
+          </div>
+        </div>
+
+        <!-- Ringkasan grafik singkat + progress -->
+        <div class="dashboard-grid">
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <h3>Progress Anggaran</h3>
+                <div class="panel-sub">Capaian realisasi terhadap pagu</div>
+              </div>
+            </div>
+            <div class="progress-gauge-wrap">
+              <div class="progress-ring">
+                <svg width="132" height="132" viewBox="0 0 132 132">
+                  <circle class="ring-bg" cx="66" cy="66" r="54"></circle>
+                  <circle class="ring-fg" id="ringFg" cx="66" cy="66" r="54" stroke-dasharray="339" stroke-dashoffset="339"></circle>
+                </svg>
+                <div class="progress-ring-label">
+                  <strong id="ringPercentLabel">0%</strong>
+                  <span>REALISASI</span>
+                </div>
+              </div>
+              <div class="progress-legend">
+                <div class="progress-legend-row">
+                  <span class="lbl"><span class="dot" style="background:var(--color-primary)"></span>Pagu</span>
+                  <span class="val" id="legendPagu">Rp 0</span>
+                </div>
+                <div class="progress-legend-row">
+                  <span class="lbl"><span class="dot" style="background:var(--color-success)"></span>Realisasi</span>
+                  <span class="val" id="legendRealisasi">Rp 0</span>
+                </div>
+                <div class="progress-legend-row">
+                  <span class="lbl"><span class="dot" style="background:var(--color-info)"></span>Sisa</span>
+                  <span class="val" id="legendSisa">Rp 0</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <h3>Persentase Progres Penyerapan Terbayar</h3>
+              <div class="panel-sub">% kumulatif Terbayar terhadap total Pagu, per bulan berjalan (2025–2026)</div>
+            </div>
+          </div>
+          <div class="chart-canvas-wrap" style="height:280px;" id="wrapChartProgresPersenHome">
+            <canvas id="chartProgresPersenHome"></canvas>
+          </div>
+        </div>
+
+        <div class="dashboard-grid-2">
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <h3>Realisasi per Unit</h3>
+                <div class="panel-sub">Perbandingan pagu vs realisasi tiap unit</div>
+              </div>
+            </div>
+            <div class="chart-canvas-wrap" id="wrapChartUnitHome">
+              <canvas id="chartUnitHome"></canvas>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <h3>Status Anggaran</h3>
+                <div class="panel-sub">Distribusi status penyerapan anggaran</div>
+              </div>
+            </div>
+            <div class="chart-canvas-wrap" id="wrapChartStatusHome">
+              <canvas id="chartStatusHome"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Grafik per Program (data berjalan) -->
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <h3>Pagu vs Terkontrak vs Tertagih vs Terbayar per Program</h3>
+              <div class="panel-sub">Ringkasan penyerapan per program, data berjalan</div>
+            </div>
+          </div>
+          <div class="chart-canvas-wrap" style="height:340px;" id="wrapChartProgramBandingHome">
+            <canvas id="chartProgramBandingHome"></canvas>
+          </div>
+        </div>
+
+        <div class="dashboard-grid-2">
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <h3>Proporsi Pagu per Program Kerja</h3>
+                <div class="panel-sub">Distribusi pagu anggaran tiap program, data berjalan</div>
+              </div>
+            </div>
+            <div class="chart-canvas-wrap" id="wrapChartProgramProporsiHome">
+              <canvas id="chartProgramProporsiHome"></canvas>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <h3>Progress Penyerapan per Program</h3>
+                <div class="panel-sub">% AI Terkontrak, % Tertagih, % Terbayar per program</div>
+              </div>
+            </div>
+            <div class="chart-canvas-wrap" style="height:340px;" id="wrapChartProgramProgressHome">
+              <canvas id="chartProgramProgressHome"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Proporsi Pagu per PRK Efisiensi & Pemasaran (data berjalan) -->
+        <div class="dashboard-grid-2">
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <h3>Proporsi Pagu per PRK Efisiensi</h3>
+                <div class="panel-sub">Distribusi pagu program kerja kelompok Efisiensi, data berjalan</div>
+              </div>
+            </div>
+            <div class="proporsi-toggle">
+              <button type="button" class="proporsi-toggle-btn active" data-group="efisiensi" data-mode="program">Per Program</button>
+              <button type="button" class="proporsi-toggle-btn" data-group="efisiensi" data-mode="prkpos">Per PRK/POS</button>
+            </div>
+            <div class="chart-canvas-wrap" id="wrapChartProgramProporsiEfisiensiHome">
+              <canvas id="chartProgramProporsiEfisiensiHome"></canvas>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <h3>Proporsi Pagu per PRK Pemasaran</h3>
+                <div class="panel-sub">Distribusi pagu program kerja kelompok Pemasaran, data berjalan</div>
+              </div>
+            </div>
+            <div class="proporsi-toggle">
+              <button type="button" class="proporsi-toggle-btn active" data-group="pemasaran" data-mode="program">Per Program</button>
+              <button type="button" class="proporsi-toggle-btn" data-group="pemasaran" data-mode="prkpos">Per PRK/POS</button>
+            </div>
+            <div class="chart-canvas-wrap" id="wrapChartProgramProporsiPemasaranHome">
+              <canvas id="chartProgramProporsiPemasaranHome"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Perbandingan % Antar-PRK (AI Terkontrak vs Tertagih vs Terbayar, skala 0–1), data berjalan -->
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <h3>Perbandingan % Antar-PRK</h3>
+              <div class="panel-sub">Sum of % AI Terkotrak, % Tertagih, % Terbayar terhadap Pagu tiap PRK, data berjalan</div>
+            </div>
+          </div>
+          <div class="proporsi-toggle">
+            <button type="button" class="proporsi-toggle-btn active" data-group="perbandingan" data-mode="program">Per Program</button>
+            <button type="button" class="proporsi-toggle-btn" data-group="perbandingan" data-mode="prkpos">Per PRK/POS</button>
+          </div>
+          <div class="chart-canvas-wrap" style="height:360px;" id="wrapChartPerbandinganPersenPrkHome">
+            <canvas id="chartPerbandinganPersenPrkHome"></canvas>
+          </div>
+        </div>
+
+        <!-- Top 10 & Riwayat Update -->
+        <div class="dashboard-grid-2">
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <h3>Top 10 Realisasi</h3>
+                <div class="panel-sub">10 item dengan realisasi terbesar</div>
+              </div>
+            </div>
+            <div class="top10-list" id="top10RealisasiList"></div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <h3>Top 10 Sisa Anggaran</h3>
+                <div class="panel-sub">10 item dengan sisa anggaran terbesar</div>
+              </div>
+            </div>
+            <div class="top10-list" id="top10SisaList"></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <h3>Riwayat Update</h3>
+              <div class="panel-sub">Status sinkronisasi data dari Google Sheets</div>
+            </div>
+          </div>
+          <div class="riwayat-body" id="riwayatUpdateBody"></div>
+        </div>
+      </section>
+
+      <!-- ======================= PAGE: DASHBOARD MURNI (anak Dashboard Home) ======================= -->
+      <section class="page" id="page-dashboard-murni">
+        <div class="page-header">
+          <div>
+            <h2>Dashboard Murni <span class="kategori-badge badge-murni">Murni</span></h2>
+            <p>Ringkasan realisasi anggaran kategori <strong>Murni</strong>, dapat difilter per tahun.</p>
+          </div>
+          <div class="page-actions">
+            <select class="filter-select" id="filterTahunMurni">
+              <option value="">Semua Tahun</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="summary-grid cols-6" id="summaryGridMurni">
+          <div class="summary-card card-pagu">
+            <div class="summary-card-label">Total Pagu</div>
+            <div class="summary-card-value" id="statPaguMurni">Rp 0</div>
+          </div>
+          <div class="summary-card card-jumlah">
+            <div class="summary-card-label">Total AI Terkontrak</div>
+            <div class="summary-card-value" id="statKontrakMurni">Rp 0</div>
+          </div>
+          <div class="summary-card card-info">
+            <div class="summary-card-label">Total Tertagih</div>
+            <div class="summary-card-value" id="statTertagihMurni">Rp 0</div>
+          </div>
+          <div class="summary-card card-realisasi">
+            <div class="summary-card-label">Total Terbayar</div>
+            <div class="summary-card-value" id="statTerbayarMurni">Rp 0</div>
+          </div>
+          <div class="summary-card card-sisa">
+            <div class="summary-card-label">Sisa Anggaran</div>
+            <div class="summary-card-value" id="statSisaMurni">Rp 0</div>
+          </div>
+          <div class="summary-card card-persen">
+            <div class="summary-card-label">% Realisasi Terbayar</div>
+            <div class="summary-card-value" id="statPersenMurni">0%</div>
+          </div>
+        </div>
+
+        <div class="dashboard-grid-2">
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <h3>Progres Penyerapan Terbayar per Tahun</h3>
+                <div class="panel-sub">Persentase terbayar terhadap pagu, dibandingkan antar tahun</div>
+              </div>
+            </div>
+            <div class="chart-canvas-wrap" style="height:300px;" id="wrapChartProgresTahunMurni">
+              <canvas id="chartProgresTahunMurni"></canvas>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <h3>Kontrak vs Tertagih vs Terbayar</h3>
+                <div class="panel-sub">Perbandingan 3 metrik pada tahun terpilih</div>
+              </div>
+            </div>
+            <div class="chart-canvas-wrap" style="height:300px;" id="wrapChartBandingMurni">
+              <canvas id="chartBandingMurni"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header"><div><h3>Rekap per Tahun — Kategori Murni</h3></div></div>
+          <div class="table-scroll">
+            <table class="data-table">
+              <thead><tr><th>Tahun</th><th>Total Pagu</th><th>Total Kontrak</th><th>Total Tertagih</th><th>Total Terbayar</th><th>Sisa</th><th>%</th></tr></thead>
+              <tbody id="rekapTahunMurniTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <h3>Detail PRK/POS — Kategori Murni</h3>
+              <div class="panel-sub" id="detailTableSubMurni">Menampilkan seluruh baris data (semua tahun)</div>
+            </div>
+          </div>
+          <div class="table-scroll">
+            <table class="data-table">
+              <thead><tr><th>No</th><th>Unit</th><th>PRK/POS</th><th>Uraian PRK/POS</th><th>Tahun</th><th>Pagu</th><th>Terbayar</th><th>Status</th></tr></thead>
+              <tbody id="detailTableMurniTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ======================= PAGE: DASHBOARD LANJUTAN (anak Dashboard Home) ======================= -->
+      <section class="page" id="page-dashboard-lanjutan">
+        <div class="page-header">
+          <div>
+            <h2>Dashboard Lanjutan <span class="kategori-badge badge-lanjutan">Lanjutan</span></h2>
+            <p>Ringkasan realisasi anggaran kategori <strong>Lanjutan</strong>, dapat difilter per tahun.</p>
+          </div>
+          <div class="page-actions">
+            <select class="filter-select" id="filterTahunLanjutan">
+              <option value="">Semua Tahun</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="summary-grid cols-6" id="summaryGridLanjutan">
+          <div class="summary-card card-pagu">
+            <div class="summary-card-label">Total Pagu</div>
+            <div class="summary-card-value" id="statPaguLanjutan">Rp 0</div>
+          </div>
+          <div class="summary-card card-jumlah">
+            <div class="summary-card-label">Total AI Terkontrak</div>
+            <div class="summary-card-value" id="statKontrakLanjutan">Rp 0</div>
+          </div>
+          <div class="summary-card card-info">
+            <div class="summary-card-label">Total Tertagih</div>
+            <div class="summary-card-value" id="statTertagihLanjutan">Rp 0</div>
+          </div>
+          <div class="summary-card card-realisasi">
+            <div class="summary-card-label">Total Terbayar</div>
+            <div class="summary-card-value" id="statTerbayarLanjutan">Rp 0</div>
+          </div>
+          <div class="summary-card card-sisa">
+            <div class="summary-card-label">Sisa Anggaran</div>
+            <div class="summary-card-value" id="statSisaLanjutan">Rp 0</div>
+          </div>
+          <div class="summary-card card-persen">
+            <div class="summary-card-label">% Realisasi Terbayar</div>
+            <div class="summary-card-value" id="statPersenLanjutan">0%</div>
+          </div>
+        </div>
+
+        <div class="dashboard-grid-2">
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <h3>Progres Penyerapan Terbayar per Tahun</h3>
+                <div class="panel-sub">Persentase terbayar terhadap pagu, dibandingkan antar tahun</div>
+              </div>
+            </div>
+            <div class="chart-canvas-wrap" style="height:300px;" id="wrapChartProgresTahunLanjutan">
+              <canvas id="chartProgresTahunLanjutan"></canvas>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <h3>Kontrak vs Tertagih vs Terbayar</h3>
+                <div class="panel-sub">Perbandingan 3 metrik pada tahun terpilih</div>
+              </div>
+            </div>
+            <div class="chart-canvas-wrap" style="height:300px;" id="wrapChartBandingLanjutan">
+              <canvas id="chartBandingLanjutan"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header"><div><h3>Rekap per Tahun — Kategori Lanjutan</h3></div></div>
+          <div class="table-scroll">
+            <table class="data-table">
+              <thead><tr><th>Tahun</th><th>Total Pagu</th><th>Total Kontrak</th><th>Total Tertagih</th><th>Total Terbayar</th><th>Sisa</th><th>%</th></tr></thead>
+              <tbody id="rekapTahunLanjutanTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <h3>Detail PRK/POS — Kategori Lanjutan</h3>
+              <div class="panel-sub" id="detailTableSubLanjutan">Menampilkan seluruh baris data (semua tahun)</div>
+            </div>
+          </div>
+          <div class="table-scroll">
+            <table class="data-table">
+              <thead><tr><th>No</th><th>Unit</th><th>PRK/POS</th><th>Uraian PRK/POS</th><th>Tahun</th><th>Pagu</th><th>Terbayar</th><th>Status</th></tr></thead>
+              <tbody id="detailTableLanjutanTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section class="page" id="page-arsip">
+        <div class="page-header">
+          <div>
+            <h2>Arsip Anggaran <span class="kategori-badge badge-arsip" id="arsipHeaderBadge">2022–2024</span></h2>
+          </div>
+          <div class="page-actions">
+            <select class="filter-select" id="filterTahunArsip">
+              <option value="">Semua Tahun (2022–2024)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="summary-grid cols-6" id="summaryGridArsip">
+          <div class="summary-card card-pagu">
+            <div class="summary-card-label">Total Pagu</div>
+            <div class="summary-card-value" id="statPaguArsip">Rp 0</div>
+          </div>
+          <div class="summary-card card-jumlah">
+            <div class="summary-card-label">Total AI Terkontrak</div>
+            <div class="summary-card-value" id="statKontrakArsip">Rp 0</div>
+          </div>
+          <div class="summary-card card-info">
+            <div class="summary-card-label">Total Tertagih</div>
+            <div class="summary-card-value" id="statTertagihArsip">Rp 0</div>
+          </div>
+          <div class="summary-card card-realisasi">
+            <div class="summary-card-label">Total Terbayar</div>
+            <div class="summary-card-value" id="statTerbayarArsip">Rp 0</div>
+          </div>
+          <div class="summary-card card-sisa">
+            <div class="summary-card-label">Sisa Anggaran</div>
+            <div class="summary-card-value" id="statSisaArsip">Rp 0</div>
+          </div>
+          <div class="summary-card card-persen">
+            <div class="summary-card-label">% Realisasi Terbayar</div>
+            <div class="summary-card-value" id="statPersenArsip">0%</div>
+          </div>
+        </div>
+
+        <div class="dashboard-grid-2">
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <h3>Progres Penyerapan Terbayar per Tahun</h3>
+                <div class="panel-sub">Persentase terbayar terhadap pagu, dibandingkan antar tahun 2022–2024</div>
+              </div>
+            </div>
+            <div class="chart-canvas-wrap" style="height:300px;" id="wrapChartProgresTahunArsip">
+              <canvas id="chartProgresTahunArsip"></canvas>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <h3>Kontrak vs Tertagih vs Terbayar</h3>
+                <div class="panel-sub">Perbandingan 3 metrik pada tahun terpilih</div>
+              </div>
+            </div>
+            <div class="chart-canvas-wrap" style="height:300px;" id="wrapChartBandingArsip">
+              <canvas id="chartBandingArsip"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <h3>AI Terkontrak &amp; AKI Terkontrak per Program</h3>
+              <div class="panel-sub">Perbandingan nilai AI Terkontrak vs AKI Terkontrak tiap program (arsip)</div>
+            </div>
+          </div>
+          <div class="chart-canvas-wrap" style="height:340px;" id="wrapChartProgramTerkontrakArsip">
+            <canvas id="chartProgramTerkontrakArsip"></canvas>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <h3>Pagu vs AI Terkontrak vs AKI Terkontrak vs Tertagih vs Terbayar per Program</h3>
+              <div class="panel-sub">Ringkasan lengkap penyerapan tiap program (arsip)</div>
+            </div>
+          </div>
+          <div class="chart-canvas-wrap" style="height:360px;" id="wrapChartProgramFullArsip">
+            <canvas id="chartProgramFullArsip"></canvas>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header"><div><h3>Rekap per Tahun — Arsip</h3></div></div>
+          <div class="table-scroll">
+            <table class="data-table">
+              <thead><tr><th>Tahun</th><th>Total Pagu</th><th>Total Kontrak</th><th>Total Tertagih</th><th>Total Terbayar</th><th>Sisa</th><th>%</th></tr></thead>
+              <tbody id="rekapTahunArsipTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ======================= PAGE: MONITORING DATA ======================= -->
+      <section class="page" id="page-monitoring">
+        <div class="page-header">
+          <div>
+            <h2>Monitoring Data Anggaran</h2>
+            <p>Cari, filter, urutkan, dan telusuri seluruh data anggaran SKKI.</p>
+          </div>
+          <div class="page-actions">
+            <button class="btn btn-outline btn-sm" id="btnExportExcelTable">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5M12 15V3"/></svg>
+              Excel
+            </button>
+          </div>
+        </div>
+
+        <!-- Filter Bar -->
+        <div class="panel" style="padding-bottom:14px;">
+          <div class="filter-bar">
+            <div class="search-box">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+              <input type="text" id="searchInput" placeholder="Cari unit, no anggaran, uraian, PRK/POS...">
+            </div>
+
+            <select class="filter-select" id="filterTahun">
+              <option value="">Semua Tahun</option>
+            </select>
+
+            <select class="filter-select" id="filterBulan">
+              <option value="">Semua Bulan</option>
+            </select>
+
+            <select class="filter-select" id="filterUnit">
+              <option value="">Semua Unit</option>
+            </select>
+
+            <select class="filter-select" id="filterStatus">
+              <option value="">Semua Status</option>
+            </select>
+
+            <button class="filter-reset" id="btnResetFilter">Reset Filter</button>
+          </div>
+        </div>
+
+        <!-- Tabel Data -->
+        <div class="panel">
+          <div id="tableContainer">
+            <div class="table-scroll">
+              <table class="data-table" id="dataTable">
+                <thead>
+                  <tr id="tableHeadRow"></tr>
+                </thead>
+                <tbody id="tableBody">
+                  <!-- diisi oleh script.js -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="pagination-bar">
+            <div class="pagination-info" id="paginationInfo">Menampilkan 0 dari 0 data</div>
+            <div class="pagination-controls" id="paginationControls"></div>
+            <select class="page-size-select" id="pageSizeSelect">
+              <option value="10">10 / halaman</option>
+              <option value="25" selected>25 / halaman</option>
+              <option value="50">50 / halaman</option>
+              <option value="100">100 / halaman</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <!-- ======================= PAGE: PROGRESS AI ======================= -->
+      <section class="page" id="page-progress-ai">
+        <div class="page-header">
+          <div>
+            <h2>Progress AI</h2>
+            <p>Progres AI Terkontrak, Tertagih, dan Terbayar untuk seluruh item PRK/POS.</p>
+          </div>
+        </div>
+
+        <div class="panel" style="padding-bottom:14px;">
+          <div class="progress-tabs">
+            <button class="progress-tab active" data-tab="terkontrak">AI Terkontrak</button>
+            <button class="progress-tab" data-tab="tertagih">Tertagih</button>
+            <button class="progress-tab" data-tab="terbayar">Terbayar</button>
+          </div>
+        </div>
+
+        <div class="summary-grid" style="grid-template-columns: 1fr;">
+          <div class="summary-card card-pagu">
+            <div class="summary-card-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg>
+            </div>
+            <div class="summary-card-label" id="progressAITotalLabel">Total</div>
+            <div class="summary-card-value" id="progressAITotal">Rp 0</div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <h3>Grafik Bulanan</h3>
+              <div class="panel-sub">Nilai per bulan &amp; kumulatif berjalan</div>
+            </div>
+          </div>
+          <div class="chart-canvas-wrap" style="height:320px;" id="wrapChartProgressAI">
+            <canvas id="chartProgressAI"></canvas>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <h3>Rincian per Kode PRK</h3>
+              <div class="panel-sub">Pilih kode PRK untuk melihat rincian Jan–Des, mengikuti kolom Total &amp; Kumulatif pada sheet</div>
+            </div>
+          </div>
+          <select class="filter-select" id="filterProgressAIPrk" style="max-width:360px; margin-bottom:14px;">
+            <option value="">-- Pilih Kode PRK --</option>
+          </select>
+          <div id="progressAIPrkDetail"></div>
+        </div>
+      </section>
+
+      <!-- ======================= PAGE: REKAP UNIT ======================= -->
+      <section class="page" id="page-rekap-unit">
+        <div class="page-header">
+          <div>
+            <h2>Rekap Unit</h2>
+            <p>Rekapitulasi Pagu, Kontrak, Tertagih, Terbayar, dan Sisa Anggaran per Unit.</p>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <h3>Pagu vs Realisasi per Unit</h3>
+            </div>
+          </div>
+          <div class="chart-canvas-wrap" style="height:320px;" id="wrapChartRekapUnit">
+            <canvas id="chartRekapUnit"></canvas>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header"><div><h3>Tabel Rekap Unit</h3></div></div>
+          <div class="table-scroll">
+            <table class="data-table">
+              <thead><tr><th>Unit</th><th>Total Pagu</th><th>Total Kontrak</th><th>Total Tertagih</th><th>Total Terbayar</th><th>Sisa</th><th>%</th></tr></thead>
+              <tbody id="rekapUnitTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ======================= PAGE: REKAP PROGRAM ======================= -->
+      <section class="page" id="page-rekap-program">
+        <div class="page-header">
+          <div>
+            <h2>Rekap Program</h2>
+            <p>Rekapitulasi Pagu, Kontrak, Tertagih, Terbayar, dan Sisa Anggaran per Program.</p>
+          </div>
+          <div class="page-actions">
+            <select class="filter-select" id="filterTahunRekapProgram">
+              <option value="">Semua Tahun</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <h3>Pagu vs Realisasi per Program</h3>
+              <div class="panel-sub">Mengikuti filter tahun di atas</div>
+            </div>
+          </div>
+          <div class="chart-canvas-wrap" style="height:320px;" id="wrapChartRekapProgram">
+            <canvas id="chartRekapProgram"></canvas>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header"><div><h3>Tabel Rekap Program</h3></div></div>
+          <div class="table-scroll">
+            <table class="data-table">
+              <thead><tr><th>Program</th><th>Total Pagu</th><th>Total Kontrak</th><th>Total Tertagih</th><th>Total Terbayar</th><th>Sisa</th><th>%</th></tr></thead>
+              <tbody id="rekapProgramTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <h3>Rekap Program per Tahun</h3>
+              <div class="panel-sub">Total seluruh program, dibandingkan antar tahun (tidak terpengaruh filter tahun di atas)</div>
+            </div>
+          </div>
+          <div class="table-scroll">
+            <table class="data-table">
+              <thead><tr><th>Tahun</th><th>Total Pagu</th><th>Total Kontrak</th><th>Total Tertagih</th><th>Total Terbayar</th><th>Sisa</th><th>%</th></tr></thead>
+              <tbody id="rekapProgramPerTahunTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ======================= PAGE: GRAFIK ======================= -->
+      <section class="page" id="page-grafik">
+        <div class="page-header">
+          <div>
+            <h2>Grafik Anggaran</h2>
+            <p>Visualisasi realisasi anggaran berdasarkan waktu, unit, dan status.</p>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <h3>Pagu vs Kontrak vs Tertagih vs Terbayar per Program</h3>
+              <div class="panel-sub">Ringkasan penyerapan per program (seluruh tahun)</div>
+            </div>
+          </div>
+          <div class="chart-canvas-wrap" style="height:340px;" id="wrapChartProgramBandingFull">
+            <canvas id="chartProgramBandingFull"></canvas>
+          </div>
+        </div>
+
+        <div class="dashboard-grid-2">
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <h3>Proporsi Pagu per Program</h3>
+                <div class="panel-sub">Distribusi pagu anggaran tiap program</div>
+              </div>
+            </div>
+            <div class="chart-canvas-wrap" style="height:320px;" id="wrapChartProgramProporsiFull">
+              <canvas id="chartProgramProporsiFull"></canvas>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <h3>Progress Penyerapan per Program</h3>
+                <div class="panel-sub">% AI Terkontrak, % Tertagih, % Terbayar per program</div>
+              </div>
+            </div>
+            <div class="chart-canvas-wrap" style="height:320px;" id="wrapChartProgramProgressFull">
+              <canvas id="chartProgramProgressFull"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div class="dashboard-grid-2">
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <h3>Realisasi per Unit</h3>
+                <div class="panel-sub">Pagu vs realisasi tiap unit kerja</div>
+              </div>
+            </div>
+            <div class="chart-canvas-wrap" style="height:320px;" id="wrapChartUnitFull">
+              <canvas id="chartUnitFull"></canvas>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <h3>Status Anggaran</h3>
+                <div class="panel-sub">Distribusi jumlah item per status</div>
+              </div>
+            </div>
+            <div class="chart-canvas-wrap" style="height:320px;" id="wrapChartStatusFull">
+              <canvas id="chartStatusFull"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <h3>Progress Anggaran per Unit</h3>
+              <div class="panel-sub">Persentase realisasi terhadap pagu tiap unit</div>
+            </div>
+          </div>
+          <div class="unit-progress-list" id="unitProgressList"></div>
+        </div>
+      </section>
+
+      <!-- ======================= PAGE: LAPORAN ======================= -->
+      <section class="page" id="page-laporan">
+        <div class="page-header">
+          <div>
+            <h2>Laporan</h2>
+            <p>Pilih cakupan data, lalu unduh atau cetak laporan sesuai kebutuhan.</p>
+          </div>
+        </div>
+
+        <!-- Filter khusus Laporan (terpisah dari filter Monitoring Data) -->
+        <div class="panel" style="padding-bottom:14px;">
+          <div class="panel-header">
+            <div>
+              <h3>Filter Data Laporan</h3>
+              <div class="panel-sub">Tentukan data apa saja yang ingin diunduh/dicetak</div>
+            </div>
+          </div>
+          <div class="filter-bar">
+            <select class="filter-select" id="filterCakupanLaporan">
+              <option value="semua">Semua Data (Berjalan + Arsip)</option>
+              <option value="realtime" id="optCakupanRealtime" selected>Hanya Data Berjalan (2025–2026)</option>
+              <option value="arsip" id="optCakupanArsip">Hanya Arsip (2022–2024)</option>
+            </select>
+
+            <select class="filter-select" id="filterTahunLaporan">
+              <option value="">Semua Tahun</option>
+            </select>
+
+            <select class="filter-select" id="filterKategoriLaporan">
+              <option value="">Semua Kategori</option>
+              <option value="Murni">Murni</option>
+              <option value="Lanjutan">Lanjutan</option>
+            </select>
+
+            <select class="filter-select" id="filterUnitLaporan">
+              <option value="">Semua Unit</option>
+            </select>
+
+            <select class="filter-select" id="filterStatusLaporan">
+              <option value="">Semua Status</option>
+            </select>
+
+            <button class="filter-reset" id="btnResetFilterLaporan">Reset Filter</button>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <h3>Ekspor Laporan</h3>
+              <div class="panel-sub" id="laporanJumlahDataText">Laporan mengikuti filter di atas</div>
+            </div>
+          </div>
+
+          <div style="display:flex; gap:14px; flex-wrap:wrap;">
+            <button class="btn btn-primary" id="btnExportExcel">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5M12 15V3"/></svg>
+              Export ke Excel
+            </button>
+            <button class="btn btn-outline" id="btnExportPDF">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+              Export ke PDF
+            </button>
+            <button class="btn btn-outline" id="btnPrint">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+              Print
+            </button>
+          </div>
+        </div>
+
+        <div class="panel" id="printArea">
+          <div class="panel-header">
+            <div>
+              <h3>Ringkasan Laporan</h3>
+              <div class="panel-sub" id="reportGeneratedAt">-</div>
+            </div>
+          </div>
+          <div class="summary-grid" id="reportSummaryGrid" style="grid-template-columns: repeat(6, 1fr);"></div>
+
+          <div class="table-scroll" style="margin-top:16px;">
+            <table class="data-table" id="reportTable">
+              <thead><tr id="reportTableHead"></tr></thead>
+              <tbody id="reportTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ======================= PAGE: KPI OVERVIEW ======================= -->
+      <section class="page" id="page-kpi-overview" data-app="kpi">
+        <div class="page-header">
+          <div>
+            <h2>Ringkasan KPI UP3 Cirebon</h2>
+            <div class="panel-sub" id="kpiOverviewPeriode">Periode data: -</div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <div><h3>Peta Sebaran ULP</h3><div class="panel-sub">Titik kantor tiap ULP wilayah kerja UP3 Cirebon</div></div>
+          </div>
+          <div class="kpi-map-layout">
+            <div id="kpiOverviewMapTotal"></div>
+            <div class="kpi-map-canvas" id="kpiOverviewMapCanvas"></div>
+          </div>
+        </div>
+
+        <!-- Kartu ringkas 5 indikator (Delta Penjualan, Susut, SAIDI, SAIFI, ENS)
+             sengaja dihapus dari sini — datanya sudah ada di popup peta di
+             atas, jadi tidak perlu diulang lagi di bawahnya. -->
+
+        <div class="dashboard-grid" style="grid-template-columns: 1fr 1fr;">
+          <div class="panel">
+            <div class="panel-header">
+              <div><h3>Skor Total per ULP</h3><div class="panel-sub">Jumlah indikator per kategori pencapaian (perspektif &amp; scoreboard)</div></div>
+            </div>
+            <div class="chart-canvas-wrap" style="height:280px;"><canvas id="kpiChartSkorUlp"></canvas></div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header">
+              <div><h3>Ranking NKO</h3><div class="panel-sub">Nilai Kinerja Operasional — UP3 CRB: <b id="kpiOverviewNkoUp3">-</b></div></div>
+            </div>
+            <div class="table-scroll">
+              <table class="data-table kpi-table-compact">
+                <thead><tr><th>Rank</th><th>ULP</th><th>NKO</th><th>Status</th></tr></thead>
+                <tbody id="kpiRankingBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ======================= PAGE: KPI PER INDIKATOR ======================= -->
+      <section class="page" id="page-kpi-indikator" data-app="kpi">
+        <div class="page-header">
+          <div>
+            <h2>Per Indikator KPI <span class="kategori-badge badge-realtime" id="kpiIndikatorSatuan"></span></h2>
+            <div class="panel-sub" id="kpiIndikatorJudul">-</div>
+          </div>
+          <div class="page-actions" style="flex-wrap:wrap;gap:10px;">
+            <select class="filter-select" id="kpiFilterIndikator" style="min-width:280px;"></select>
+            <select class="filter-select" id="kpiIndikatorBulan" style="min-width:150px;"></select>
+          </div>
+        </div>
+
+        <div class="kpi-grafik-grid kpi-grafik-grid-2">
+          <div class="panel kpi-mini-panel">
+            <div class="kpi-mini-panel-title">Pencapaian UP3 dan ULP<br><span style="font-weight:400;color:var(--color-text-secondary);" id="kpiPanelDPctSub">bulan terpilih</span></div>
+            <div class="chart-canvas-wrap" style="height:240px;"><canvas id="kpiPanelDPct"></canvas></div>
+          </div>
+          <div class="panel kpi-mini-panel">
+            <div class="kpi-mini-panel-title">Target vs Realisasi UP3 dan ULP<br><span style="font-weight:400;color:var(--color-text-secondary);" id="kpiPanelDRealSub">bulan terpilih</span></div>
+            <div class="chart-canvas-wrap" style="height:240px;"><canvas id="kpiPanelDReal"></canvas></div>
+          </div>
+        </div>
+
+        <!-- ===== Tabel "Per Indikator KPI" dikelompokkan per BAGIAN (SAR PP/JAR/TE/REN/KU) ===== -->
+        <div class="panel" style="margin-top:24px;">
+          <div class="panel-header">
+            <div>
+              <h3>Tabel KPI per Bagian</h3>
+              <div class="panel-sub" id="kpiBagianTableSub">Seluruh indikator, dikelompokkan per bagian — ULP &amp; bulan mengikuti filter di atas</div>
+            </div>
+          </div>
+          <div class="table-scroll">
+            <table class="data-table kpi-table-compact">
+              <thead><tr><th>Indikator</th><th>Satuan</th><th>Target</th><th>Realisasi</th><th>Capaian</th><th>Status</th></tr></thead>
+              <tbody id="kpiBagianTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="panel" style="margin-top:24px;">
+          <div class="panel-header">
+            <div>
+              <h3>Grafik per Bagian</h3>
+              <div class="panel-sub">Rata-rata capaian (%) tiap bagian — perbandingan antar ULP, bulan mengikuti filter di atas</div>
+            </div>
+          </div>
+          <div class="chart-canvas-wrap" style="height:300px;"><canvas id="kpiChartPerBagian"></canvas></div>
+        </div>
+
+        <!-- ===== Mode "Per Tema" — gaya sheet Grafik: pilih 1 tema, lihat grafiknya untuk SEMUA indikator sekaligus ===== -->
+        <div class="panel" style="margin-top:24px;">
+          <div class="panel-header">
+            <div>
+              <h3>Semua Indikator per Tema</h3>
+              <div class="panel-sub">Gaya sheet "Grafik" asli: pilih 1 tema, lihat grafik tema itu untuk seluruh indikator sekaligus</div>
+            </div>
+            <div class="page-actions">
+              <select class="filter-select" id="kpiFilterTema" style="min-width:320px;">
+                <option value="A">Realisasi Kinerja UP3 Cirebon Tahun 2019 s/d 2026</option>
+                <option value="B">Realisasi Kumulatif Target vs Realisasi 2026</option>
+                <option value="C">Trend Bulanan UP3 Cirebon</option>
+                <option value="D">Realisasi Kinerja per ULP Tahun 2026</option>
+                <option value="E">Realisasi Kumulatif Kinerja Tahun A vs Tahun B UP3 Cirebon</option>
+                <option value="F">Realisasi Bulanan Kinerja Tahun A vs Tahun B UP3 Cirebon</option>
+                <option value="G">Realisasi Kinerja Tahun 2019 s/d 2023 UP3 Cirebon</option>
+                <option value="H">Realisasi Kinerja Tahun 2019 s/d 2023 per ULP (KTA, KNG, SBR, CLD, CLM)</option>
+              </select>
+              <select class="filter-select" id="kpiTemaTahunA" style="min-width:100px;" title="Tahun A (dipakai tema E &amp; F)"></select>
+              <select class="filter-select" id="kpiTemaTahunB" style="min-width:100px;" title="Tahun B (dipakai tema E &amp; F)"></select>
+            </div>
+          </div>
+          <div class="kpi-grafik-grid" id="kpiTemaGrid"></div>
+        </div>
+      </section>
+
+      <!-- ======================= PAGE: KPI PER UNIT ======================= -->
+      <section class="page" id="page-kpi-ulp" data-app="kpi">
+        <div class="page-header">
+          <div>
+            <h2 id="kpiUlpDetailTitle">Realisasi Kinerja Unit</h2>
+            <div class="panel-sub" id="kpiUlpDetailSub">-</div>
+          </div>
+          <div class="page-actions">
+            <select class="filter-select" id="kpiUlpDetailBulan" style="min-width:150px;"></select>
+            <select class="filter-select" id="kpiFilterUlpDetail"></select>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="table-scroll">
+            <table class="data-table kpi-detail-table">
+              <thead><tr><th>No</th><th>Indikator Kinerja Kunci</th><th>Satuan</th><th>Target</th><th>Realisasi</th><th>%</th><th>Status</th><th>Bobot</th><th>Nilai</th><th>Loss Point</th></tr></thead>
+              <tbody id="kpiUlpDetailBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Kotak keterangan (arah indikator + kategori Baik/Hati-hati/Awas) —
+             sengaja dipisah dari tabel data, DIISI oleh kpi.js dari ulp.legend
+             (bukan lagi ikut sebagai baris tabel). -->
+        <div class="panel kpi-legend-box" id="kpiUlpLegendBox" hidden></div>
+      </section>
+
+      <!-- ======================= PAGE: KPI PERBANDINGAN ULP ======================= -->
+      <section class="page" id="page-kpi-banding" data-app="kpi">
+        <div class="page-header">
+          <div>
+            <h2>Perbandingan UP3 dan ULP</h2>
+            <div class="panel-sub" id="kpiBandingJudul">-</div>
+          </div>
+          <div class="page-actions">
+            <select class="filter-select" id="kpiBandingIndikator" style="min-width:280px;"></select>
+            <select class="filter-select" id="kpiBandingBulan" style="min-width:150px;"></select>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="chart-canvas-wrap" style="height:320px;"><canvas id="kpiBandingChart"></canvas></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header"><div><h3>Ranking Cepat</h3></div></div>
+          <div class="table-scroll">
+            <table class="data-table kpi-table-compact">
+              <thead><tr><th>#</th><th>ULP</th><th>Realisasi</th><th>Pencapaian</th><th>Status</th></tr></thead>
+              <tbody id="kpiBandingBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ======================= PAGE: DATA PENGUSAHAAN ======================= -->
+      <section class="page" id="page-kpi-pengusahaan" data-app="kpi">
+        <div class="page-header">
+          <div>
+            <h2>Data Pengusahaan</h2>
+            <div class="panel-sub">Tren pelanggan &amp; pertumbuhan daya tersambung, UP3 Cirebon</div>
+          </div>
+        </div>
+
+        <div class="dashboard-grid" style="grid-template-columns: 1fr 1fr;">
+          <div class="panel">
+            <div class="panel-header"><div><h3>Tren Jumlah Pelanggan</h3><div class="panel-sub">2020–2026</div></div></div>
+            <div class="chart-canvas-wrap" style="height:240px;"><canvas id="kpiPengusahaanPelanggan"></canvas></div>
+          </div>
+          <div class="panel">
+            <div class="panel-header"><div><h3>Daya Tersambung</h3><div class="panel-sub">2020–2026 (MVA)</div></div></div>
+            <div class="chart-canvas-wrap" style="height:240px;"><canvas id="kpiPengusahaanDaya"></canvas></div>
+          </div>
+          <div class="panel">
+            <div class="panel-header"><div><h3>Growth Pelanggan &amp; Daya</h3><div class="panel-sub">Pertumbuhan tahunan (%)</div></div></div>
+            <div class="chart-canvas-wrap" style="height:240px;"><canvas id="kpiPengusahaanGrowth"></canvas></div>
+          </div>
+          <div class="panel">
+            <div class="panel-header"><div><h3>Jumlah Pelanggan Bulanan</h3><div class="panel-sub">Tahun 2026</div></div></div>
+            <div class="chart-canvas-wrap" style="height:240px;"><canvas id="kpiPengusahaanMonthly"></canvas></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header"><div><h3>Tabel Ringkas Data Pengusahaan</h3></div></div>
+          <div class="table-scroll">
+            <table class="data-table">
+              <thead id="kpiPengusahaanHead"></thead>
+              <tbody id="kpiPengusahaanBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<!-- ============================= MODAL: APP SWITCHER ============================= -->
+<div class="app-switcher-modal" id="appSwitcherModal">
+  <div class="app-switcher-backdrop" id="appSwitcherBackdrop"></div>
+  <div class="app-switcher-panel">
+    <div class="app-switcher-panel-header">
+      <h3>Pilih Dashboard</h3>
+      <button class="detail-modal-close" id="appSwitcherClose" aria-label="Tutup">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="app-switch-cards">
+      <button class="app-switch-card" data-app="skki">
+        <div class="app-switch-icon" style="background:var(--color-primary-light);color:var(--color-primary);">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+        </div>
+        <div class="app-switch-text">
+          <strong>SKKI</strong>
+          <span>Anggaran &amp; Realisasi UP3 Cirebon</span>
+        </div>
+      </button>
+      <button class="app-switch-card" data-app="kpi">
+        <div class="app-switch-icon" style="background:var(--color-success-bg);color:var(--color-success);">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg>
+        </div>
+        <div class="app-switch-text">
+          <strong>KPI Monitoring</strong>
+          <span>Realisasi Kinerja KPI UP3 Cirebon</span>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="detail-modal" id="detailModal">
+  <div class="detail-modal-backdrop" id="detailModalBackdrop"></div>
+  <div class="detail-modal-panel">
+    <div class="detail-modal-header">
+      <div>
+        <h3 id="detailModalTitle">Detail Anggaran</h3>
+        <div class="detail-modal-sub" id="detailModalSub"></div>
+      </div>
+      <button class="detail-modal-close" id="detailModalClose" aria-label="Tutup">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="detail-modal-body" id="detailModalBody"></div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div class="toast-container" id="toastContainer"></div>
+<!-- Script: koneksi data (isi API_URL di sini) -->
+<script src="api.js"></script>
+<!-- Script: logika utama aplikasi (dashboard SKKI) -->
+<script src="script.js"></script>
+<!-- Script: logika dashboard KPI Monitoring UP3 Cirebon -->
+<script src="kpi.js"></script>
+</body>
+</html>
