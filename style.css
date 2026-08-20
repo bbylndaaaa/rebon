@@ -2075,3 +2075,79 @@ table.data-table.kpi-table-compact { min-width: 0; width: 100%; }
 @media (max-width: 900px) {
   .kpi-legend-list { grid-template-columns: 1fr; }
 }
+
+/* ========================================================================== 
+   MOBILE LAYOUT — dashboard tetap terstruktur pada layar ponsel
+   ========================================================================== */
+@media (max-width: 600px) {
+  html, body { max-width: 100%; overflow-x: hidden; }
+  .sidebar { width: min(var(--sidebar-width), 86vw); }
+  .main-wrapper { width: 100%; min-width: 0; }
+
+  .navbar { height: var(--navbar-height); padding: 0 10px; gap: 8px; }
+  .navbar-left { min-width: 0; flex: 1; }
+  .navbar-title { min-width: 0; }
+  .navbar-title h1 { font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .navbar-right { gap: 6px; flex: 0 0 auto; }
+  .navbar-right .connection-badge { display: none; }
+  .navbar-refresh { width: 36px; height: 36px; padding: 0; justify-content: center; }
+  .navbar-refresh span { display: none; }
+
+  .content { width: 100%; padding: 10px; overflow: hidden; }
+  .content::before { background-size: min(72vw, 280px) auto; opacity: .07; }
+  .page, .panel, .dashboard-grid, .dashboard-grid-2 { min-width: 0; max-width: 100%; }
+  .panel { padding: 14px; border-radius: 10px; }
+  .panel-header { gap: 8px; margin-bottom: 12px; }
+  .panel-header h3 { font-size: 14px; line-height: 1.35; }
+  .panel-sub { font-size: 11px; line-height: 1.45; }
+
+  .page-header { padding: 14px; margin-bottom: 12px; gap: 12px; border-radius: 10px; }
+  .page-header h2 { font-size: 17px; line-height: 1.3; }
+  .page-actions { width: 100%; display: grid; grid-template-columns: 1fr; gap: 8px; }
+  .page-actions .filter-select,
+  .page-actions select,
+  .filter-select { width: 100% !important; max-width: 100% !important; min-width: 0 !important; }
+
+  /* Menimpa grid dua kolom yang ditulis inline di HTML. */
+  .dashboard-grid,
+  .dashboard-grid-2,
+  .summary-grid,
+  .summary-grid.cols-6,
+  .kpi-grafik-grid,
+  .kpi-grafik-grid-2 { grid-template-columns: minmax(0, 1fr) !important; gap: 12px; }
+
+  .kpi-filter-bar { position: sticky; top: var(--navbar-height); width: 100%; padding: 8px 10px; gap: 8px; }
+  .kpi-filter-group { width: 100%; display: grid; grid-template-columns: 1fr; gap: 5px; }
+  .kpi-filter-group label { white-space: normal; }
+  .kpi-filter-group .filter-select { width: 100%; }
+
+  .chart-canvas-wrap { height: 230px !important; min-height: 0; }
+  .kpi-mini-panel { padding: 12px; }
+  .kpi-mini-panel-title { font-size: 11px; }
+
+  .kpi-map-layout { gap: 12px; }
+  .kpi-map-total-card { padding: 14px; }
+  .kpi-map-canvas { min-height: 210px; border-radius: 10px; }
+  .kpi-map-popcard { width: 160px; padding: 7px; }
+  .kpi-map-pop-grid { grid-template-columns: 1fr; }
+
+  .table-scroll { width: 100%; max-width: 100%; border-radius: 8px; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; }
+  table.data-table { min-width: 760px; font-size: 11.5px; }
+  table.data-table.kpi-table-compact { min-width: 520px; }
+  table.data-table.kpi-detail-table { min-width: 960px; }
+  .data-table thead th, .data-table tbody td { padding: 9px 10px; }
+
+  .kpi-legend-box { padding: 12px; }
+  .kpi-legend-list { grid-template-columns: minmax(0, 1fr); }
+  .kpi-legend-item { font-size: 11.5px; }
+
+  .app-switcher-panel { width: calc(100vw - 20px); max-height: calc(100dvh - 20px); overflow-y: auto; }
+  .detail-modal-panel, .kpi-modal-panel { width: calc(100vw - 20px); max-width: none; max-height: calc(100dvh - 20px); }
+}
+
+@media (max-width: 380px) {
+  .content { padding: 8px; }
+  .panel, .page-header { padding: 12px; }
+  .chart-canvas-wrap { height: 210px !important; }
+  .kpi-map-canvas { min-height: 190px; }
+}
