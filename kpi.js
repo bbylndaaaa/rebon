@@ -364,7 +364,8 @@ const KPI = (function () {
 
   async function fetchLive(action, params, options) {
     options = options || {};
-    const qs = new URLSearchParams(Object.assign({ action }, params || {})).toString();
+    const token = typeof window.getAuthToken === "function" ? window.getAuthToken() : "";
+    const qs = new URLSearchParams(Object.assign({ action, token }, params || {})).toString();
     const key = qs;
     const now = Date.now();
     const cached = responseCache.get(key);
