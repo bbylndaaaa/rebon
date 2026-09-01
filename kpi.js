@@ -7,7 +7,7 @@
    ========================================================================== */
 
 const KPI_CONFIG = {
-  API_URL: "https://script.google.com/macros/s/AKfycbyB4AH0_vYiVbpFBaCVnPdfO2-KOz-oLmgWk_fgycHkiZ4cjfOOFQiYT7W-9ydHsCck2g/exec",
+  API_URL: "https://script.google.com/macros/s/AKfycbyF-avTwks-UU-udRxWXRWqtIjwQ2qvhbgpvIaGxjT9stb-BwzXytsUL4y1MHS3MhtHKQ/exec",
   USE_LIVE: true,
   CACHE_TTL_MS: 10 * 60 * 1000
 };
@@ -113,13 +113,13 @@ const KPI = (function () {
   (function applyChartAesthetics() {
     if (typeof window.Chart !== "function") return;
     const Chart = window.Chart;
-    Chart.defaults.elements.line.tension = 0.38;
+    Chart.defaults.elements.line.tension = 0.4;
     Chart.defaults.elements.line.cubicInterpolationMode = "monotone";
     Chart.defaults.elements.line.borderWidth = 2.5;
     Chart.defaults.elements.point.radius = 3;
     Chart.defaults.elements.point.hoverRadius = 5;
     Chart.defaults.elements.point.borderWidth = 2;
-    Chart.defaults.elements.bar.borderRadius = 6;
+    Chart.defaults.elements.bar.borderRadius = 0;
     Chart.defaults.elements.bar.borderSkipped = false;
     Chart.defaults.plugins.tooltip.cornerRadius = 8;
     Chart.defaults.plugins.tooltip.padding = 10;
@@ -239,6 +239,10 @@ const KPI = (function () {
     tahunA: "2026",
     tahunB: "2025",
     tema: "A", // tema aktif di grid "Semua Indikator per Tema": A/B/C/D/E
+    pengusahaanUnit: "UP3 Cirebon",
+    pengusahaanBagian: "BAGIAN SAR & PP",
+    pengusahaanTahun: "2026",
+    pengusahaanBulan: "",
     overviewLoading: false,
     // Menandai apakah user SUDAH secara eksplisit memilih bulan lewat dropdown
     // masing-masing (bukan cuma nilai default sistem). Selama belum dipilih,
@@ -805,30 +809,11 @@ const KPI = (function () {
   /* --------------------------- app switcher (SKKI <-> KPI) --------------------------- */
 
   function bindAppSwitcher() {
-    const openBtn = document.getElementById("appSwitcherBtn");
-    const modal = document.getElementById("appSwitcherModal");
-    const backdrop = document.getElementById("appSwitcherBackdrop");
-    const closeBtn = document.getElementById("appSwitcherClose");
-    const cards = document.querySelectorAll(".app-switch-card");
-
-    if (!openBtn || !modal) return;
-
-    const open = () => modal.classList.add("show");
-    const close = () => modal.classList.remove("show");
-
-    openBtn.addEventListener("click", open);
-    if (backdrop) backdrop.addEventListener("click", close);
-    if (closeBtn) closeBtn.addEventListener("click", close);
-
-    cards.forEach((card) => {
-      card.addEventListener("click", () => {
-        switchApp(card.dataset.app);
-        close();
-      });
-    });
-
-    // default: tampilkan app SKKI di awal (biar tidak mengubah pengalaman lama)
-    switchApp("skki", true);
+    const backBtn = document.getElementById("portalBackBtn");
+    const requestedApp = new URLSearchParams(window.location.search).get("app");
+    const app = requestedApp === "kpi" ? "kpi" : "skki";
+    switchApp(app, false);
+    if (backBtn) backBtn.addEventListener("click", () => window.location.assign("portal.html"));
   }
 
   function switchApp(app, silent) {
@@ -978,7 +963,6 @@ const KPI = (function () {
 
     renderOverviewMap(crbRow);
   }
-
 
   // Ambil realisasi bulan aktif (state.bulan) untuk 1 indikator di 1 ULP,
   // dibulatkan sesuai satuan (menit / kali / %).
@@ -1922,64 +1906,206 @@ const KPI = (function () {
      ============================================================ */
   function renderPengusahaan() {
     const rows = DATA.dataPengusahaan;
-    const find = (label, satuan) => rows.find((r) => r.label === label && (!satuan || r.satuan === satuan));
+    const fallbackUnit = "UP3 Cirebon";
+    const fallbackBagian = "BAGIAN SAR & PP";
+    const years = DATA.meta.years2019_2026.filter((y) => y !== "2019");
+    const units = Array.from(new Set(rows.map((r) => r.unit || fallbackUnit)));
+    const hasUlpData = units.some((u) => /^ULP\s+/i.test(u));
+    if (!units.includes(state.pengusahaanUnit)) state.pengusahaanUnit = units[0] || fallbackUnit;
 
-    const pelanggan = find("Jumlah Pelanggan", "Plg");
-    const daya = find("Daya Tersambung", "MVA");
-    const growthPlgPct = rows.find((r) => r.label === "Growth Jml Pelanggan" && r.satuan === "%");
-    const growthDayaPct = rows.filter((r) => r.label === "Growth Daya" && r.satuan === "%")[0];
+    const unitRows = rows.filter((r) => (r.unit || fallbackUnit) === state.pengusahaanUnit);
+    const isUlp = /^ULP\s+/i.test(state.pengusahaanUnit);
+    const bagianList = Array.from(new Set(unitRows.map((r) => r.bagian || fallbackBagian)));
+    if (!bagianList.includes(state.pengusahaanBagian)) state.pengusahaanBagian = bagianList[0] || "";
+    const availableYears = isUlp
+      ? Array.from(new Set(unitRows.map((r) => r.tahun).filter(Boolean)))
+      : years;
+    if (!availableYears.includes(state.pengusahaanTahun)) state.pengusahaanTahun = availableYears[availableYears.length - 1] || "";
+    const monthCodes = DATA.meta.months || MONTHS_EN;
+    const monthlySource = isUlp ? unitRows : rows.filter((r) => /^ULP\s+/i.test(r.unit || ""));
+    let latestMonthIndex = -1;
+    monthlySource.forEach((r) => (r.monthly2026 || []).forEach((v, i) => {
+      if (v !== null && v !== undefined && !isNaN(v)) latestMonthIndex = Math.max(latestMonthIndex, i);
+    }));
+    if (!monthCodes.includes(state.pengusahaanBulan)) {
+      state.pengusahaanBulan = monthCodes[latestMonthIndex >= 0 ? latestMonthIndex : monthCodes.length - 1];
+    }
+    const monthIndex = monthCodes.indexOf(state.pengusahaanBulan);
+    const periodLabel = isUlp ? `${DATA.meta.monthsID[monthIndex] || state.pengusahaanBulan} ${state.pengusahaanTahun}` : state.pengusahaanTahun;
 
-    const years = DATA.meta.years2019_2026.filter((y) => y !== "2019"); // data pengusahaan mulai 2020
+    const bindSelect = (id, options, value, onChange, disabled) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.innerHTML = options.map((o) => `<option value="${escAttr(o.value)}">${o.label}</option>`).join("");
+      el.value = value;
+      el.disabled = !!disabled;
+      if (!el.dataset.bound) {
+        el.dataset.bound = "1";
+        el.addEventListener("change", () => onChange(el.value));
+      }
+    };
+    bindSelect("kpiPengusahaanUnit", units.map((u) => ({ value: u, label: u })), state.pengusahaanUnit, (v) => {
+      state.pengusahaanUnit = v;
+      state.pengusahaanBagian = "";
+      renderPengusahaan();
+    });
+    bindSelect("kpiPengusahaanBagian", bagianList.map((b) => ({ value: b, label: b })), state.pengusahaanBagian, (v) => {
+      state.pengusahaanBagian = v;
+      renderPengusahaan();
+    }, bagianList.length <= 1);
+    bindSelect("kpiPengusahaanTahun", availableYears.map((y) => ({ value: y, label: `Tahun ${y}` })), state.pengusahaanTahun, (v) => {
+      state.pengusahaanTahun = v;
+      renderPengusahaan();
+    }, availableYears.length <= 1);
+    bindSelect("kpiPengusahaanBulan", monthCodes.map((m, i) => ({ value: m, label: DATA.meta.monthsID[i] || m })), state.pengusahaanBulan, (v) => {
+      state.pengusahaanBulan = v;
+      renderPengusahaan();
+    }, !isUlp);
 
-    if (pelanggan) {
-      makeChart("kpiPengusahaanPelanggan", {
-        type: "line",
-        data: { labels: years, datasets: [{ label: "Jumlah Pelanggan", data: years.map((y) => pelanggan.yearly[y]), borderColor: PALETTE.primary, backgroundColor: PALETTE.primary, tension: 0.3, fill: false }] },
-        options: baseGridOptions({ plugins: { legend: { display: false } } })
+    const reset = document.getElementById("kpiPengusahaanReset");
+    if (reset && !reset.dataset.bound) {
+      reset.dataset.bound = "1";
+      reset.addEventListener("click", () => {
+        state.pengusahaanUnit = fallbackUnit;
+        state.pengusahaanBagian = fallbackBagian;
+        state.pengusahaanTahun = "2026";
+        state.pengusahaanBulan = "";
+        renderPengusahaan();
       });
     }
-    if (daya) {
-      makeChart("kpiPengusahaanDaya", {
-        type: "bar",
-        data: { labels: years, datasets: [{ label: "Daya Tersambung (MVA)", data: years.map((y) => daya.yearly[y]), backgroundColor: PALETTE.realisasi, borderRadius: 4 }] },
-        options: baseGridOptions({ plugins: { legend: { display: false } } })
-      });
-    }
-    if (growthPlgPct) {
-      makeChart("kpiPengusahaanGrowth", {
-        type: "line",
-        data: {
-          labels: years,
-          datasets: [
-            { label: "Growth Pelanggan (%)", data: years.map((y) => growthPlgPct.yearly[y] * 100), borderColor: PALETTE.success, tension: 0.3, fill: false },
-            ...(growthDayaPct ? [{ label: "Growth Daya (%)", data: years.map((y) => growthDayaPct.yearly[y] * 100), borderColor: PALETTE.danger, tension: 0.3, fill: false }] : [])
-          ]
-        },
-        options: baseGridOptions()
-      });
-    }
 
-    if (pelanggan) {
-      makeChart("kpiPengusahaanMonthly", {
-        type: "line",
-        data: { labels: DATA.meta.monthsID, datasets: [{ label: "Jumlah Pelanggan 2026", data: pelanggan.monthly2026, borderColor: PALETTE.primary, backgroundColor: PALETTE.primary, tension: 0.3, fill: false }] },
-        options: baseGridOptions({ plugins: { legend: { display: false } } })
+    const normalizedLabel = (value) => String(value || "").toLowerCase().replace(/\s*\([^)]*\)/g, "").trim();
+    const metric = (source, name, satuan) => source.find((r) => normalizedLabel(r.label) === name && (!satuan || String(r.satuan || "").toLowerCase() === satuan.toLowerCase()));
+    const pelanggan = metric(unitRows, "jumlah pelanggan");
+    const daya = metric(unitRows, "daya tersambung", "MVA");
+    const penjualan = metric(unitRows, "penjualan");
+    const pendapatan = metric(unitRows, "pendapatan");
+    const selectedValue = (r, offset = 0) => {
+      if (!r) return null;
+      if (isUlp) {
+        const idx = monthIndex + offset;
+        return idx >= 0 && r.monthly2026 ? r.monthly2026[idx] : null;
+      }
+      const idx = years.indexOf(state.pengusahaanTahun) + offset;
+      return idx >= 0 && r.yearly ? r.yearly[years[idx]] : null;
+    };
+    const excelColumn = (number) => {
+      let result = "";
+      for (let n = number; n > 0; n = Math.floor((n - 1) / 26)) result = String.fromCharCode(65 + ((n - 1) % 26)) + result;
+      return result;
+    };
+    const sourceRef = (r, periodIndex, monthly = isUlp) => {
+      if (!r || !r.sourceRow) return "DATA PENGUSAHAAN · referensi sel menunggu pembaruan API";
+      const column = monthly ? 4 + periodIndex : 20 + periodIndex;
+      return `${r.sourceSheet || "DATA PENGUSAHAAN"}!${excelColumn(column)}${r.sourceRow}`;
+    };
+    const metricText = (r, value) => value === null || value === undefined || isNaN(value) ? "-" : `${fmt(value, /plg/i.test(r.satuan || "") ? 0 : 2)}${r.satuan ? " " + r.satuan : ""}`;
+    if (!document.body.dataset.pengusahaanSourceBound) {
+      document.body.dataset.pengusahaanSourceBound = "1";
+      document.addEventListener("click", (event) => {
+        const target = event.target.closest(".pengusahaan-source-click");
+        if (!target) return;
+        const cell = target.closest("td");
+        const source = target.dataset.source || cell?.querySelector(".source-ref, .source-code")?.textContent || cell?.nextElementSibling?.querySelector(".source-code")?.textContent || "Referensi sel belum tersedia";
+        window.alert(`Asal nilai\nNilai: ${target.textContent.trim()}\nSumber: ${source}\n\nPerhitungan: nilai dibaca langsung dari sel sumber dan tidak diubah oleh dashboard.`);
+      });
+      document.addEventListener("keydown", (event) => {
+        if ((event.key === "Enter" || event.key === " ") && event.target.classList?.contains("pengusahaan-source-click")) {
+          event.preventDefault();
+          event.target.click();
+        }
       });
     }
+    const setMetricCard = (valueId, deltaId, r) => {
+      const current = selectedValue(r);
+      const previous = selectedValue(r, -1);
+      setText(valueId, metricText(r || {}, current));
+      const valueEl = document.getElementById(valueId);
+      const sourceIndex = isUlp ? monthIndex : years.indexOf(state.pengusahaanTahun);
+      if (valueEl) {
+        valueEl.classList.add("pengusahaan-source-click");
+        valueEl.dataset.source = sourceRef(r, sourceIndex);
+        valueEl.setAttribute("role", "button");
+        valueEl.setAttribute("tabindex", "0");
+        valueEl.setAttribute("title", "Klik untuk melihat asal nilai");
+      }
+      const deltaEl = document.getElementById(deltaId);
+      if (!deltaEl) return;
+      if (current === null || current === undefined || previous === null || previous === undefined || !previous) {
+        const sourceIndex = isUlp ? monthIndex : years.indexOf(state.pengusahaanTahun);
+        deltaEl.textContent = `Periode ${periodLabel} · pembanding tidak tersedia · Sumber: ${sourceRef(r, sourceIndex)}`;
+        deltaEl.className = "";
+      } else {
+        const change = ((current - previous) / Math.abs(previous)) * 100;
+        const sourceIndex = isUlp ? monthIndex : years.indexOf(state.pengusahaanTahun);
+        deltaEl.textContent = `${change > 0 ? "↑" : change < 0 ? "↓" : "±"} ${fmt(Math.abs(change), 1)}% dari periode sebelumnya · Sumber: ${sourceRef(r, sourceIndex)} vs ${sourceRef(r, sourceIndex - 1)}`;
+        deltaEl.className = change > 0 ? "pengusahaan-delta-up" : change < 0 ? "pengusahaan-delta-down" : "";
+      }
+    };
+    setMetricCard("kpiPengusahaanStatPelanggan", "kpiPengusahaanDeltaPelanggan", pelanggan);
+    setMetricCard("kpiPengusahaanStatDaya", "kpiPengusahaanDeltaDaya", daya);
+    setMetricCard("kpiPengusahaanStatPenjualan", "kpiPengusahaanDeltaPenjualan", penjualan);
+    setMetricCard("kpiPengusahaanStatPendapatan", "kpiPengusahaanDeltaPendapatan", pendapatan);
 
-    // tabel ringkas
+    ["kpiPengusahaanDeltaPelanggan", "kpiPengusahaanDeltaDaya", "kpiPengusahaanDeltaPenjualan", "kpiPengusahaanDeltaPendapatan"].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el && el.textContent.includes("Sumber:")) el.textContent = el.textContent.split(" · Sumber:")[0];
+    });
+
+    const trendLabels = isUlp ? DATA.meta.monthsID : years;
+    const trendValues = (r) => !r ? trendLabels.map(() => null) : isUlp ? r.monthly2026 : years.map((y) => r.yearly[y]);
+    makeChart("kpiPengusahaanPelangganDaya", {
+      type: "line",
+      data: { labels: trendLabels, datasets: [
+        { label: "Jumlah Pelanggan", data: trendValues(pelanggan), sourceRow: pelanggan, borderColor: PALETTE.primary, backgroundColor: PALETTE.primary, yAxisID: "y", tension: .3 },
+        { label: "Daya Tersambung (MVA)", data: trendValues(daya), sourceRow: daya, borderColor: PALETTE.realisasi, backgroundColor: PALETTE.realisasi, yAxisID: "y1", tension: .3 }
+      ] },
+      options: baseGridOptions({ scales: { y: { position: "left", grid: { color: PALETTE.grid } }, y1: { position: "right", grid: { drawOnChartArea: false } }, x: { grid: { display: false } } } })
+    });
+    makeChart("kpiPengusahaanKomersial", {
+      type: "line",
+      data: { labels: trendLabels, datasets: [
+        { label: "Penjualan", data: trendValues(penjualan), sourceRow: penjualan, borderColor: PALETTE.success, backgroundColor: PALETTE.success, yAxisID: "y", tension: .3 },
+        { label: "Pendapatan", data: trendValues(pendapatan), sourceRow: pendapatan, borderColor: PALETTE.danger, backgroundColor: PALETTE.danger, yAxisID: "y1", tension: .3 }
+      ] },
+      options: baseGridOptions({ scales: { y: { position: "left", grid: { color: PALETTE.grid } }, y1: { position: "right", grid: { drawOnChartArea: false } }, x: { grid: { display: false } } } })
+    });
+    setText("kpiPengusahaanTrendCustomerSub", `${state.pengusahaanUnit} · ${isUlp ? "Bulanan " + state.pengusahaanTahun : "Tahunan 2020–2026"}`);
+    setText("kpiPengusahaanTrendCommercialSub", `${state.pengusahaanUnit} · nilai sesuai satuan pada sheet`);
+    setText("kpiPengusahaanContext", `${state.pengusahaanUnit} · ${state.pengusahaanBagian} · ${periodLabel}${hasUlpData ? "" : " · Data ULP menunggu pembaruan API"}`);
+
+    const comparisonBody = document.getElementById("kpiPengusahaanComparisonBody");
+    const ulpUnits = units.filter((u) => /^ULP\s+/i.test(u));
+    if (comparisonBody) comparisonBody.innerHTML = ulpUnits.map((unit) => {
+      const source = rows.filter((r) => (r.unit || fallbackUnit) === unit);
+      const get = (name, satuan) => metric(source, name, satuan);
+      const val = (r) => r && r.monthly2026 ? r.monthly2026[monthIndex] : null;
+      const year = source.find((r) => r.tahun)?.tahun || "-";
+      const sourceValue = (r) => `<span class="source-value">${metricText(r, val(r))}</span><small class="source-ref">${sourceRef(r, monthIndex, true)}</small>`;
+      return `<tr><td><strong>${unit}</strong></td><td>${DATA.meta.monthsID[monthIndex] || state.pengusahaanBulan} ${year}</td>
+        <td class="num">${sourceValue(get("jumlah pelanggan"))}</td>
+        <td class="num">${sourceValue(get("daya tersambung", "MVA"))}</td>
+        <td class="num">${sourceValue(get("penjualan"))}</td>
+        <td class="num">${sourceValue(get("pendapatan"))}</td></tr>`;
+    }).join("") || `<tr><td colspan="6" class="empty-table-cell">Data per ULP belum tersedia dari API.</td></tr>`;
+    setText("kpiPengusahaanComparisonSub", `Perbandingan ${DATA.meta.monthsID[monthIndex] || state.pengusahaanBulan} · periode mengikuti blok ULP pada sheet`);
+
+    const detailRows = unitRows.filter((r) => (r.bagian || fallbackBagian) === state.pengusahaanBagian);
     const tbody = document.getElementById("kpiPengusahaanBody");
-    if (tbody) {
-      tbody.innerHTML = rows
-        .filter((r) => r.bagian === "BAGIAN SAR & PP" && ["Jumlah Pelanggan", "Daya Tersambung", "Growth Jml Pelanggan", "Growth Daya", "Penjualan", "Pendapatan"].includes(r.label))
-        .map((r) => `<tr>
-          <td>${r.label}</td><td>${r.satuan || ""}</td>
-          ${years.map((y) => `<td class="num">${r.satuan === "%" ? fmtPct(r.yearly[y]) : fmt(r.yearly[y], 0)}</td>`).join("")}
-        </tr>`)
-        .join("");
-      const thead = document.getElementById("kpiPengusahaanHead");
-      if (thead) thead.innerHTML = `<tr><th>Komponen</th><th>Satuan</th>${years.map((y) => `<th>${y}</th>`).join("")}</tr>`;
-    }
+    const thead = document.getElementById("kpiPengusahaanHead");
+    if (thead) thead.innerHTML = `<tr><th>Unit</th><th>Bagian</th><th>Komponen</th><th>Satuan</th><th>Periode</th><th>Nilai</th><th>Sumber</th></tr>`;
+    if (tbody) tbody.innerHTML = detailRows.map((r) => {
+      const raw = selectedValue(r);
+      const sourceIndex = isUlp ? monthIndex : years.indexOf(state.pengusahaanTahun);
+      return `<tr><td>${r.unit || fallbackUnit}</td><td>${r.bagian || fallbackBagian}</td><td>${r.label}</td><td>${r.satuan || "-"}</td><td>${periodLabel}</td><td class="num">${r.satuan === "%" ? fmtPct(raw) : fmt(raw, 2)}</td><td><code class="source-code">${sourceRef(r, sourceIndex)}</code></td></tr>`;
+    }).join("") || `<tr><td colspan="7" class="empty-table-cell">Tidak ada data untuk filter yang dipilih.</td></tr>`;
+    setText("kpiPengusahaanTableSub", `${state.pengusahaanUnit} · ${state.pengusahaanBagian} · ${periodLabel}`);
+    document.querySelectorAll("#kpiPengusahaanComparisonBody .source-value, #kpiPengusahaanBody td.num").forEach((el) => {
+      el.classList.add("pengusahaan-source-click");
+      el.setAttribute("role", "button");
+      el.setAttribute("tabindex", "0");
+      el.setAttribute("title", "Klik untuk melihat asal nilai");
+    });
   }
 
   return { init, reload, renderPage, state, get DATA() { return DATA; } };

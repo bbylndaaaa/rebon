@@ -3,7 +3,8 @@ const API_URL = "https://script.google.com/macros/s/AKfycbx6Rq5IJEWOS1EQ05710xeG
 const HIST_API_URLS = {
   "2022": "https://script.google.com/macros/s/AKfycbz5jJUHprjhNkEfMWRxLZI3OXFbND8NchoNGQkJpCBipToaRA1oAKGxJmZyWB4preZo/exec",
   "2023": "https://script.google.com/macros/s/AKfycbys-oSkXXuDGuVrsG4i97oZ7P30cqSVY-v2AoE-XcngZuJo9_jziZS2tN7E6MppKSjTsQ/exec",
-  "2024": "https://script.google.com/macros/s/AKfycbzeprMlLPrXhBX-zBIzLw069972Omnms0cZ5UqlZof_QweWffyQ1it7joo15uM0PME/exec"
+  "2024": "https://script.google.com/macros/s/AKfycbzeprMlLPrXhBX-zBIzLw069972Omnms0cZ5UqlZof_QweWffyQ1it7joo15uM0PME/exec" ,
+  "2025": "https://script.google.com/macros/s/AKfycbxsGhyLihrw022ZN4Hv1aDtZ07ABhxGmIdT9yYCHVEkhS-1FFJTV4GZcWgBZgCI3xDB/exec"
 };
 
 const COLUMN_MAP = {
@@ -54,6 +55,28 @@ const PROGRESS_SHEET_NAMES = {
 };
 
 const MAIN_SHEET_NAME = "MONITORING ANGGARAN SKKI";
+// Tahun mengikuti sumber tabel anggaran, bukan tahun program pada uraian.
+// Jadi pekerjaan lanjutan program 2025 yang berada di tabel utama 2026
+// tetap termasuk Data Berjalan 2026.
+const MAIN_DATA_YEAR = "2026";
+
+// Snapshot bulanan untuk grafik penyerapan. Setiap sheet diharapkan memiliki
+// header "AI Terkontrak" dan "Terbayar" seperti Monitoring Data. Jika nama
+// sheet yang dibuat berbeda, cukup ubah nilai di konfigurasi ini.
+const MONTHLY_PROGRESS_SHEETS = [
+  { key: "JAN", name: "JAN" },
+  { key: "FEB", name: "FEB" },
+  { key: "MAR", name: "MAR" },
+  { key: "APR", name: "APR" },
+  { key: "MAY", name: "MEI" },
+  { key: "JUN", name: "JUN" },
+  { key: "JUL", name: "JUL" },
+  { key: "AUG", name: "AGT" },
+  { key: "SEP", name: "SEP" },
+  { key: "OCT", name: "OKT" },
+  { key: "NOV", name: "NOV" },
+  { key: "DEC", name: "DES" }
+];
 
 // Google Apps Script Web App sering butuh "cold start" (terutama kalau baru
 // dibuka lagi setelah idle), yang bisa memakan waktu lebih dari 15 detik.
@@ -155,7 +178,9 @@ function enrichRow(row) {
     const teks = `${row.uraianAnggaran || ""} ${row.uraianPrkPos || ""} ${row.prkPos || ""} ${row.noAnggaran || ""}`.toLowerCase();
     if (teks.indexOf("lanjutan") !== -1) row.kategori = "Lanjutan";
     else if (teks.indexOf("murni") !== -1) row.kategori = "Murni";
-    else row.kategori = "Murni"; // fallback terakhir jika kata kunci tidak ditemukan sama sekali
+    // Jangan mengarang kategori. Jika sumber tidak menyebut Murni/Lanjutan,
+    // tampilkan sebagai tidak diketahui agar masalah datanya bisa diperiksa.
+    else row.kategori = "Tidak Diketahui";
   }
 
  
@@ -175,12 +200,11 @@ function enrichRow(row) {
   }
 
   if (!row.status) {
-    const pagu = row.pagu || 0;
+    const terkontrak = row.aiTerkontrak || 0;
     const terbayar = row.terbayar || 0;
-    const persen = pagu > 0 ? (terbayar / pagu) * 100 : 0;
-    if (persen <= 0) row.status = "Belum Terealisasi";
-    else if (persen >= 100) row.status = "Selesai";
-    else row.status = "Dalam Proses";
+    if (terbayar > 0) row.status = "Selesai";
+    else if (terkontrak > 0) row.status = "Dalam Proses";
+    else row.status = "Belum Terkontrak";
   }
 
   return row;
@@ -189,6 +213,10 @@ function enrichRow(row) {
 const PROGRESS_COLUMN_MAP = {
   "bulan": "bulan",
   "bln": "bulan",
+  // Code.gs memberi nama otomatis `col_1` karena header kolom bulan pada
+  // sheet Progress AI kosong. Tetap petakan secara eksplisit agar grafik
+  // bulanan tidak hanya bergantung pada fallback pembacaan isi sel.
+  "col_1": "bulan",
   "prk/pos": "prkPos",
   "prk / pos": "prkPos",
   "kode prk": "prkPos",
@@ -242,6 +270,10 @@ function normalizeProgressRows(rows) {
       });
     }
 
+    // Samakan variasi singkatan bulan Indonesia/Inggris dengan urutan yang
+    // dipakai grafik Progress AI.
+    const monthAliases = { MEI: "MAY", AGT: "AUG", AGU: "AUG", OKT: "OCT", DES: "DEC" };
+    out.bulan = monthAliases[out.bulan] || out.bulan;
     return out;
   });
 
@@ -278,7 +310,16 @@ async function getHistoricalData() {
         }
         const json = await response.json();
         const monitoringRaw = Array.isArray(json) ? json : (Array.isArray(json.monitoring) ? json.monitoring : (json.data || []));
-        return monitoringRaw.map(normalizeRow);
+        return monitoringRaw
+          .map((rawRow) => {
+            const row = normalizeRow(rawRow);
+            // Setiap endpoint historis mewakili satu tabel tahun tertentu.
+            row.tahun = String(year);
+            return row;
+          })
+          // Abaikan baris kosong dan footer TOTAL seperti pada tabel utama.
+          .filter((row) => row.no || row.unit || row.noAnggaran || row.prkPos || row.uraianAnggaran || row.uraianPrkPos)
+          .filter((row) => String(row.prkPos || "").trim().toUpperCase() !== "TOTAL");
       } catch (error) {
         console.error(`[api.js] Gagal mengambil data historis tahun ${year}:`, error.message || error);
         return [];
@@ -305,19 +346,109 @@ async function fetchSheetRows(sheetName) {
 async function getProgressAI() {
   const empty = { terkontrak: [], tertagih: [], terbayar: [] };
   try {
-    const [terkontrakRaw, tertagihRaw, terbayarRaw] = await Promise.all([
-      fetchSheetRows(PROGRESS_SHEET_NAMES.terkontrak).catch((e) => { console.error("[api.js] Sheet AI TERKONTRAK:", e.message || e); return []; }),
-      fetchSheetRows(PROGRESS_SHEET_NAMES.tertagih).catch((e) => { console.error("[api.js] Sheet TERTAGIH:", e.message || e); return []; }),
-      fetchSheetRows(PROGRESS_SHEET_NAMES.terbayar).catch((e) => { console.error("[api.js] Sheet TERBAYAR:", e.message || e); return []; })
-    ]);
-    return {
-      terkontrak: normalizeProgressRows(terkontrakRaw),
-      tertagih: normalizeProgressRows(tertagihRaw),
-      terbayar: normalizeProgressRows(terbayarRaw)
+    const response = await fetchWithTimeout(`${API_URL}?action=progress`);
+    if (!response.ok) throw new Error(`Status ${response.status}`);
+    const json = await response.json();
+    if (json.success === false || !json.data) throw new Error(json.error || "Respons Progress AI tidak valid");
+    const normalized = {
+      terkontrak: normalizeProgressRows(Array.isArray(json.data.terkontrak) ? json.data.terkontrak : []),
+      tertagih: normalizeProgressRows(Array.isArray(json.data.tertagih) ? json.data.tertagih : []),
+      terbayar: normalizeProgressRows(Array.isArray(json.data.terbayar) ? json.data.terbayar : [])
     };
+    // Respons HTTP sukses belum tentu berarti struktur sheet berhasil dibaca.
+    // Tanpa bulan yang dikenali, paksa fallback per sheet di bawah.
+    const hasRecognizedMonth = Object.values(normalized).some((rows) => rows.some((row) => row.bulan));
+    if (!hasRecognizedMonth) throw new Error("Kolom bulan Progress AI tidak terbaca");
+    return normalized;
   } catch (error) {
-    console.error("[api.js] Gagal mengambil data Progress AI:", error.message || error);
-    return empty;
+    // Deployment Apps Script lama mungkin belum memiliki action=progress.
+    // Dalam kondisi itu baca ketiga sheet secara langsung, tetap dari sumber
+    // Google Sheets yang sama dan tanpa membuat data pengganti.
+    console.warn("[api.js] Endpoint Progress AI gabungan gagal; mencoba per sheet:", error.message || error);
+    const entries = await Promise.all(Object.entries(PROGRESS_SHEET_NAMES).map(async ([key, sheetName]) => {
+      try {
+        return [key, normalizeProgressRows(await fetchSheetRows(sheetName))];
+      } catch (sheetError) {
+        console.error(`[api.js] Sheet ${sheetName} gagal dibaca:`, sheetError.message || sheetError);
+        return [key, []];
+      }
+    }));
+    return Object.assign(empty, Object.fromEntries(entries));
+  }
+}
+
+async function getMonthlyProgress() {
+  const promoteEmbeddedHeaders = (rawRows) => {
+    if (!Array.isArray(rawRows) || rawRows.length === 0) return [];
+    const headerIndex = rawRows.findIndex((row) => {
+      const values = Object.values(row).map((value) => String(value || "").trim().toLowerCase());
+      return values.some((value) => value.indexOf("ai terkontrak") !== -1) &&
+        values.some((value) => value.indexOf("terbayar") !== -1) &&
+        values.some((value) => value.indexOf("pagu") !== -1);
+    });
+    if (headerIndex < 0) return rawRows;
+
+    const rawKeys = Object.keys(rawRows[headerIndex]);
+    const promotedHeaders = rawKeys.map((key) => String(rawRows[headerIndex][key] || "").trim());
+    return rawRows.slice(headerIndex + 1).map((row) => {
+      const out = {};
+      rawKeys.forEach((key, index) => {
+        if (promotedHeaders[index]) out[promotedHeaders[index]] = row[key];
+      });
+      return out;
+    });
+  };
+
+  const summarizeMonth = ({ key, name }, rawRows) => {
+    const rows = promoteEmbeddedHeaders(rawRows)
+      .map(normalizeRow)
+      // Abaikan header ganda, footer TOTAL, dan baris tanpa identitas anggaran.
+      .filter((row) => row.no || row.unit || row.noAnggaran || row.prkPos || row.uraianAnggaran || row.uraianPrkPos)
+      .filter((row) => String(row.prkPos || "").trim().toUpperCase() !== "TOTAL");
+    if (rows.length === 0) return null;
+
+    const sumFor = (filteredRows, field) => filteredRows.reduce((sum, row) => sum + (row[field] || 0), 0);
+    const summarizeRows = (filteredRows) => ({
+      pagu: sumFor(filteredRows, "pagu"),
+      terkontrak: sumFor(filteredRows, "aiTerkontrak"),
+      terbayar: sumFor(filteredRows, "terbayar")
+    });
+    const murniRows = rows.filter((row) => row.kategori === "Murni");
+    const lanjutanRows = rows.filter((row) => row.kategori === "Lanjutan");
+    return {
+      bulan: key,
+      sheet: name,
+      ...summarizeRows(rows),
+      kategori: {
+        Murni: summarizeRows(murniRows),
+        Lanjutan: summarizeRows(lanjutanRows)
+      },
+      rowCount: rows.length
+    };
+  };
+
+  try {
+    const response = await fetchWithTimeout(`${API_URL}?action=monthly`);
+    if (!response.ok) throw new Error(`Status ${response.status}`);
+    const json = await response.json();
+    if (json.success === false || !json.data || Array.isArray(json.data)) {
+      throw new Error(json.error || "Respons sheet bulanan tidak valid");
+    }
+
+    return MONTHLY_PROGRESS_SHEETS
+      .map((config) => summarizeMonth(config, Array.isArray(json.data[config.name]) ? json.data[config.name] : []))
+      .filter(Boolean);
+  } catch (error) {
+    console.warn("[api.js] Endpoint bulanan gabungan belum tersedia; memakai fallback per sheet.");
+    const results = await Promise.all(MONTHLY_PROGRESS_SHEETS.map(async (config) => {
+      try {
+        return summarizeMonth(config, await fetchSheetRows(config.name));
+      } catch (sheetError) {
+        console.info(`[api.js] Sheet ${config.name} belum tersedia atau gagal dibaca.`);
+        return null;
+      }
+    }));
+    return results.filter(Boolean);
   }
 }
 
@@ -341,11 +472,20 @@ async function fetchMainMonitoring() {
     meta = json.meta || { sheet: json.sheet, rowCount: json.rowCount, lastUpdated: json.lastUpdated };
   }
 
-  return { monitoring: monitoringRaw.map(normalizeRow), meta };
+  const monitoring = monitoringRaw
+    .map((rawRow) => {
+      const row = normalizeRow(rawRow);
+      row.tahun = MAIN_DATA_YEAR;
+      return row;
+    })
+    // Baris TOTAL/footer tidak boleh ikut dihitung sebagai item anggaran.
+    .filter((row) => row.no || row.unit || row.noAnggaran || row.prkPos || row.uraianAnggaran || row.uraianPrkPos)
+    .filter((row) => String(row.prkPos || "").trim().toUpperCase() !== "TOTAL");
+  return { monitoring, meta };
 }
 
 async function getData() {
-  const empty = { ok: false, meta: null, monitoring: [], progressAI: { terkontrak: [], tertagih: [], terbayar: [] } };
+  const empty = { ok: false, meta: null, monitoring: [], progressAI: { terkontrak: [], tertagih: [], terbayar: [] }, monthlyProgress: [] };
 
   if (!API_URL) {
     console.warn("[api.js] API_URL belum diisi. Menampilkan aplikasi tanpa data (empty state).");
@@ -355,10 +495,11 @@ async function getData() {
   try {
     // Data utama, arsip tahun lama, dan Progress AI diambil BERSAMAAN (bukan berurutan)
     // supaya total waktu loading = request paling lambat, bukan jumlah semuanya.
-    const [main, historicalRows, progressAI] = await Promise.all([
+    const [main, historicalRows, progressAI, monthlyProgress] = await Promise.all([
       fetchMainMonitoring(),
       getHistoricalData(),
-      getProgressAI()
+      getProgressAI(),
+      getMonthlyProgress()
     ]);
 
     const monitoring = main.monitoring.concat(historicalRows);
@@ -368,7 +509,7 @@ async function getData() {
       meta.rowCounts.historis = historicalRows.length;
     }
 
-    return { ok: true, meta, monitoring, progressAI };
+    return { ok: true, meta, monitoring, progressAI, monthlyProgress };
   } catch (error) {
     console.error("[api.js] Gagal mengambil data dari Google Sheets:", error.message || error);
     return empty;

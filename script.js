@@ -78,6 +78,7 @@ const state = {
   rawData: [],        // seluruh data dari Google Sheets (tanpa filter)
   filteredData: [],    // data setelah search + filter (untuk halaman Monitoring)
   progressAI: { terkontrak: [], tertagih: [], terbayar: [] }, // data sheet AI TERKONTRAK/TERTAGIH/TERBAYAR
+  monthlyProgress: [], // total AI Terkontrak dan Terbayar dari sheet JANUARI..DESEMBER
   activeProgressTab: "terkontrak",
   meta: null,          // { lastSync, rowCounts } dari Code.gs
   isLoading: true,
@@ -121,7 +122,7 @@ function statusClass(status) {
 }
 
 const PAGE_META = {
-  dashboard: { title: "Dashboard Home", subtitle: "Ringkasan monitoring anggaran SKKI" },
+  dashboard: { title: "Dashboard SKKI", subtitle: "Ringkasan monitoring anggaran SKKI" },
   "dashboard-murni": { title: "Dashboard Murni", subtitle: "Ringkasan realisasi anggaran kategori Murni, per tahun" },
   "dashboard-lanjutan": { title: "Dashboard Lanjutan", subtitle: "Ringkasan realisasi anggaran kategori Lanjutan, per tahun" },
   arsip: { title: "Arsip", subtitle: "Rekap historis anggaran tahun 2022–2024" },
@@ -154,6 +155,9 @@ function setupNavigation() {
       pageSubtitle.textContent = PAGE_META[pageKey].subtitle;
       pageSubtitle.hidden = !PAGE_META[pageKey].subtitle;
 
+      // Navigasi Dashboard memakai snapshot lengkap terakhir yang sudah berhasil
+      // dimuat. Tidak perlu menunggu request baru hanya untuk berpindah halaman.
+      if (pageKey === "dashboard" && state.rawData.length > 0) renderDashboardHome();
       if (pageKey === "grafik") renderCharts("full");
       if (pageKey === "laporan") renderLaporan();
       if (pageKey === "progress-ai") renderProgressAI();
@@ -246,26 +250,25 @@ function setupSidebarToggle() {
 }
 
 async function loadData(showToast = false) {
+  const hasCachedData = state.rawData.length > 0;
   state.isLoading = true;
-  renderLoadingState();
+  // Saat refresh, pertahankan data valid terakhir di layar. Skeleton hanya
+  // digunakan pada pemuatan pertama ketika belum ada snapshot sama sekali.
+  if (!hasCachedData) renderLoadingState();
   setConnectionBadge("loading");
 
   try {
     const data = await getData(); // getData() didefinisikan di api.js
     state.rawData = Array.isArray(data.monitoring) ? data.monitoring : [];
     state.progressAI = data.progressAI || { terkontrak: [], tertagih: [], terbayar: [] };
+    state.monthlyProgress = Array.isArray(data.monthlyProgress) ? data.monthlyProgress : [];
     state.meta = data.meta || null;
     state.isConnected = !!data.ok;
     state.isLoading = false;
 
     populateFilterOptions();
     applyFilters();          // otomatis merender tabel & pagination
-    renderSummary(getHomeData());
-    renderCharts("home");
-    renderChartProgresPersenHome();
-    renderTop10();
-    updateHomeBadgeLabel();
-    renderRiwayatUpdate();
+    renderDashboardHome();
 
     // Render ulang halaman aktif jika sedang membuka salah satu halaman ini
     const activePage = document.querySelector(".nav-item.active");
@@ -301,6 +304,15 @@ async function loadData(showToast = false) {
     setConnectionBadge("disconnected");
     showToastMsg("Terjadi kesalahan saat memuat data.", "error");
   }
+}
+
+function renderDashboardHome() {
+  renderSummary(getHomeData());
+  renderCharts("home");
+  renderChartProgresPersenHome();
+  renderTop10();
+  updateHomeBadgeLabel();
+  renderRiwayatUpdate();
 }
 
 // Status koneksi gabungan SKKI + KPI. Badge di navbar atas ("Terhubung ke
@@ -355,10 +367,18 @@ function renderLoadingState() {
     .join("");
 }
 
+function getSisaPagu(row) {
+  // Utamakan nilai Pagu Tersedia yang benar-benar dikirim Google Sheets.
+  // Fallback mengikuti rumus sheet: Pagu - AI Terkontrak - Usulan.
+  if (Object.prototype.hasOwnProperty.call(row, "paguTersedia")) return row.paguTersedia || 0;
+  return (row.pagu || 0) - (row.aiTerkontrak || 0) - (row.usulan || 0);
+}
+
 function computeSummary(data) {
   const totalPagu = data.reduce((sum, r) => sum + (r.pagu || 0), 0);
+  const totalKontrak = data.reduce((sum, r) => sum + (r.aiTerkontrak || 0), 0);
   const totalRealisasi = data.reduce((sum, r) => sum + (r.terbayar || 0), 0);
-  const totalSisa = totalPagu - totalRealisasi;
+  const totalSisa = data.reduce((sum, r) => sum + getSisaPagu(r), 0);
   const persenRealisasi = totalPagu > 0 ? (totalRealisasi / totalPagu) * 100 : 0;
 
   return {
@@ -375,10 +395,12 @@ function computeSummaryFull(data) {
   const totalKontrak = data.reduce((sum, r) => sum + (r.aiTerkontrak || 0), 0);
   const totalTertagih = data.reduce((sum, r) => sum + (r.tertagih || 0), 0);
   const totalTerbayar = data.reduce((sum, r) => sum + (r.terbayar || 0), 0);
-  const totalSisa = totalPagu - totalTerbayar;
+  const totalSisa = data.reduce((sum, r) => sum + getSisaPagu(r), 0);
   const persenRealisasi = totalPagu > 0 ? (totalTerbayar / totalPagu) * 100 : 0;
+  const persenKontrak = totalPagu > 0 ? (totalKontrak / totalPagu) * 100 : 0;
+  const persenSisa = totalPagu > 0 ? (totalSisa / totalPagu) * 100 : 0;
 
-  return { totalPagu, totalKontrak, totalTertagih, totalTerbayar, totalSisa, persenRealisasi, jumlahData: data.length };
+  return { totalPagu, totalKontrak, totalTertagih, totalTerbayar, totalSisa, persenRealisasi, persenKontrak, persenSisa, jumlahData: data.length };
 }
 
 function renderSummary(data) {
@@ -386,9 +408,11 @@ function renderSummary(data) {
 
   document.getElementById("statTotalPagu").textContent = formatRupiah(summary.totalPagu);
   document.getElementById("statTotalKontrak").textContent = formatRupiah(summary.totalKontrak);
+  document.getElementById("statPersenKontrak").textContent = formatPercent(summary.persenKontrak);
   document.getElementById("statTotalTertagih").textContent = formatRupiah(summary.totalTertagih);
   document.getElementById("statTotalRealisasi").textContent = formatRupiah(summary.totalTerbayar);
   document.getElementById("statSisaAnggaran").textContent = formatRupiah(summary.totalSisa);
+  document.getElementById("statPersenSisa").textContent = formatPercent(summary.persenSisa);
   document.getElementById("statPersenRealisasi").textContent = formatPercent(summary.persenRealisasi);
   document.getElementById("statJumlahData").textContent = formatNumber(summary.jumlahData);
 
@@ -458,9 +482,11 @@ function renderTop10() {
     return;
   }
 
-  const byRealisasi = [...sourceData].sort((a, b) => (b.terbayar || 0) - (a.terbayar || 0)).slice(0, 10);
-  const sisaData = sourceData.map((r) => ({ ...r, __sisa: (r.pagu || 0) - (r.terbayar || 0) }));
-  const bySisa = sisaData.sort((a, b) => b.__sisa - a.__sisa).slice(0, 10);
+  const byRealisasi = [...sourceData].sort((a, b) => (b.terbayar || 0) - (a.terbayar || 0)).slice(0, 5);
+  const sisaData = sourceData
+    .map((r) => ({ ...r, __sisa: getSisaPagu(r) }))
+    .filter((r) => r.__sisa > 0);
+  const bySisa = sisaData.sort((a, b) => b.__sisa - a.__sisa).slice(0, 5);
 
   wrapRealisasi.innerHTML = byRealisasi
     .map(
@@ -476,8 +502,9 @@ function renderTop10() {
     )
     .join("");
 
-  wrapSisa.innerHTML = bySisa
-    .map(
+  wrapSisa.innerHTML = bySisa.length === 0
+    ? `<div class="empty-state empty-state-mini"><h4>Semua pagu sudah terkontrak</h4><p>Tidak ada sisa pagu yang belum terealisasi kontrak.</p></div>`
+    : bySisa.map(
       (r, i) => `
     <div class="top10-item" data-no="${r.no}">
       <span class="top10-rank">${i + 1}</span>
@@ -487,8 +514,7 @@ function renderTop10() {
       </div>
       <span class="top10-value">${formatRupiahShort(r.__sisa)}</span>
     </div>`
-    )
-    .join("");
+    ).join("");
 
   document.querySelectorAll("#top10RealisasiList .top10-item, #top10SisaList .top10-item").forEach((el) => {
     el.addEventListener("click", () => {
@@ -512,7 +538,9 @@ function populateFilterOptions() {
   updateDynamicYearLabels();
 }
 
-const BERJALAN_TAHUN = ["2025", "2026"];
+// Data Berjalan hanya berasal dari tabel utama tahun 2026. Data dari endpoint
+// khusus 2025 dan tahun-tahun sebelumnya ditampilkan sebagai Arsip.
+const BERJALAN_TAHUN = ["2026"];
 
 function isArsipTahun(tahun) {
   return !BERJALAN_TAHUN.includes(String(tahun));
@@ -575,7 +603,6 @@ function updateDynamicYearLabels() {
   if (optArsip) optArsip.textContent = `Hanya Arsip (${arsipLabel})`;
 
   PAGE_META.arsip.subtitle = `Rekap historis anggaran tahun ${arsipLabel}`;
-  PAGE_META.dashboard.subtitle = `Ringkasan monitoring anggaran SKKI · periode berjalan ${berjalanLabel}`;
 
   const activePage = document.querySelector(".nav-item.active");
   const activeKey = activePage ? activePage.dataset.page : null;
@@ -816,7 +843,7 @@ const DETAIL_FIELDS = [
   { key: "akiTerkontrak", label: "AKI Terkontrak (Rp.)", currency: true },
   { key: "tertagih", label: "Nilai Tertagih (Rp.)", currency: true },
   { key: "terbayar", label: "Nilai Terbayar / Realisasi (Rp.)", currency: true },
-  { key: "paguTersedia", label: "Sisa Anggaran (Rp.)", currency: true },
+  { key: "paguTersedia", label: "Sisa Pagu (Rp.)", currency: true },
   { key: "tahun", label: "Tahun" },
   { key: "bulan", label: "Bulan" },
   { key: "status", label: "Status" },
@@ -873,6 +900,67 @@ const CHART_COLORS = {
   grid: "#e3e7ee",
   text: "#5c6b7a"
 };
+
+function chartColorWithAlpha(color, alpha = 0.14) {
+  if (typeof color !== "string") return color;
+  const hex = color.trim().replace("#", "");
+  if (!/^[0-9a-f]{6}$/i.test(hex)) return color;
+  const r = parseInt(hex.slice(0, 2), 16);
+  const g = parseInt(hex.slice(2, 4), 16);
+  const b = parseInt(hex.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+// Styling visual global. Hanya properti tampilan yang disentuh; data, skala,
+// callback, serta interaksi setiap grafik tetap menggunakan konfigurasi asal.
+if (typeof window.Chart === "function" && !window.__softChartShadowRegistered) {
+  window.__softChartShadowRegistered = true;
+  Chart.defaults.elements.line.tension = 0.4;
+  Chart.defaults.elements.line.cubicInterpolationMode = "monotone";
+  Chart.defaults.elements.line.borderWidth = 2.5;
+  Chart.defaults.elements.point.radius = 3;
+  Chart.defaults.elements.point.hoverRadius = 5;
+  Chart.defaults.elements.point.borderWidth = 2;
+  Chart.defaults.elements.bar.borderRadius = 0;
+  Chart.defaults.elements.bar.borderSkipped = false;
+  Chart.defaults.plugins.legend.labels.usePointStyle = true;
+
+  Chart.register({
+    id: "softChartShadow",
+    beforeUpdate(chart) {
+      const baseType = chart.config.type;
+      (chart.data.datasets || []).forEach((dataset) => {
+        const type = dataset.type || baseType;
+        if (type === "line") {
+          const lineColor = dataset.borderColor || CHART_COLORS.primary;
+          dataset.tension = 0.4;
+          dataset.cubicInterpolationMode = "monotone";
+          dataset.borderWidth = 2.5;
+          dataset.fill = "origin";
+          dataset.backgroundColor = chartColorWithAlpha(lineColor, 0.13);
+          dataset.pointBackgroundColor = lineColor;
+          dataset.pointBorderColor = "#FFFFFF";
+          dataset.pointBorderWidth = 2;
+          dataset.pointRadius = 3;
+          dataset.pointHoverRadius = 5;
+        } else if (type === "bar") {
+          dataset.borderRadius = 0;
+          dataset.borderSkipped = false;
+        }
+      });
+    },
+    beforeDatasetDraw(chart) {
+      const ctx = chart.ctx;
+      ctx.save();
+      ctx.shadowColor = "rgba(74, 91, 119, 0.16)";
+      ctx.shadowBlur = 9;
+      ctx.shadowOffsetY = 4;
+    },
+    afterDatasetDraw(chart) {
+      chart.ctx.restore();
+    }
+  });
+}
 
 function destroyChart(id) {
   if (state.charts[id]) {
@@ -972,12 +1060,15 @@ function aggregateByUnit(data) {
 
 function aggregateByStatus(data) {
   if (data.length === 0) return null;
-  const map = {};
-  data.forEach((r) => {
-    const key = r.status || "Tidak Diketahui";
-    map[key] = (map[key] || 0) + 1;
-  });
-  return { labels: Object.keys(map), values: Object.values(map) };
+  const summary = computeSummaryFull(data);
+  return {
+    labels: ["Selesai (Terbayar)", "Dalam Proses", "Belum Terkontrak"],
+    values: [
+      summary.totalTerbayar,
+      Math.max(summary.totalKontrak - summary.totalTerbayar, 0),
+      Math.max(summary.totalSisa, 0)
+    ]
+  };
 }
 
 function renderCharts(scope) {
@@ -991,7 +1082,6 @@ function renderCharts(scope) {
   const data = scope === "home" ? getHomeData() : state.rawData;
   const suffix = scope === "home" ? "Home" : "Full";
 
-  renderUnitChart(data, `wrapChartUnit${suffix}`, `chartUnit${suffix}`);
   renderStatusChart(data, `wrapChartStatus${suffix}`, `chartStatus${suffix}`);
 
   // Grafik per-Program (Pagu vs Terkontrak vs Tertagih vs Terbayar, Proporsi Pagu, Progress Penyerapan).
@@ -1081,7 +1171,7 @@ function renderStatusChart(data, wrapId, canvasId) {
   hideChartEmpty(wrapId, canvasId);
   destroyChart(canvasId);
 
-  const colorMap = { "Selesai": CHART_COLORS.success, "Dalam Proses": CHART_COLORS.warning, "Belum Terealisasi": CHART_COLORS.danger };
+  const colorMap = { "Selesai (Terbayar)": CHART_COLORS.success, "Dalam Proses": CHART_COLORS.warning, "Belum Terkontrak": CHART_COLORS.danger };
   const colors = agg.labels.map((l) => colorMap[l] || CHART_COLORS.text);
 
   const ctx = document.getElementById(canvasId).getContext("2d");
@@ -1096,13 +1186,9 @@ function renderStatusChart(data, wrapId, canvasId) {
       maintainAspectRatio: false,
       cutout: "65%",
       plugins: {
-        legend: { position: "bottom", labels: { boxWidth: 10, font: { size: 11 }, color: CHART_COLORS.text } }
-      },
-      onClick: (evt, elements) => {
-        if (!elements.length) return;
-        goToMonitoringWithFilter("status", agg.labels[elements[0].index]);
-      },
-      onHover: (evt, elements) => { evt.native.target.style.cursor = elements.length ? "pointer" : "default"; }
+        legend: { position: "bottom", labels: { boxWidth: 10, font: { size: 11 }, color: CHART_COLORS.text } },
+        tooltip: { callbacks: { label: (ctx2) => `${ctx2.label}: ${formatRupiah(ctx2.parsed)}` } }
+      }
     }
   });
 }
@@ -1207,60 +1293,135 @@ function aggregateProgressByBulan(rows) {
 }
 
 function aggregateProgresPersenBulan() {
-  const rows = state.progressAI && Array.isArray(state.progressAI.terbayar) ? state.progressAI.terbayar : [];
-  const agg = aggregateProgressByBulan(rows);
-  if (!agg || agg.labels.length === 0) return null;
+  const rows = Array.isArray(state.monthlyProgress) ? state.monthlyProgress : [];
+  const byMonth = Object.fromEntries(rows.map((row) => [row.bulan, row]));
+  // Selalu tampilkan JAN–DES. Bulan tanpa data menggunakan null agar label
+  // tetap terlihat tanpa menciptakan batang/titik Rp0 palsu.
+  const monthKeys = [...PROGRESS_MONTH_ORDER];
 
-  const totalPagu = getHomeData().reduce((sum, r) => sum + (r.pagu || 0), 0);
-  if (totalPagu <= 0) return null;
+  const valueFor = (key, field) => {
+    const row = byMonth[key];
+    if (!row) return null;
+    if (state.homeKategoriFilter && row.kategori && row.kategori[state.homeKategoriFilter]) {
+      const source = row.kategori[state.homeKategoriFilter];
+      if ((source.pagu || 0) <= 0) return null;
+      return source[field] || 0;
+    }
+    if ((row.pagu || 0) <= 0) return null;
+    return row[field] || 0;
+  };
+  const pagu = monthKeys.map((key) => valueFor(key, "pagu"));
+  const terbayar = monthKeys.map((key) => valueFor(key, "terbayar"));
+  const terkontrak = monthKeys.map((key) => valueFor(key, "terkontrak"));
 
   return {
-    labels: agg.labels.map((k) => MONTH_LABEL_ID[k] || k),
-    persen: agg.kumulatif.map((v) => Math.round((v / totalPagu) * 1000) / 10) // 1 desimal
+    labels: monthKeys.map((k) => MONTH_LABEL_ID[k] || k),
+    pagu,
+    terbayar,
+    terkontrak,
+    persenTerbayar: terbayar.map((value, index) => pagu[index] > 0 ? Math.round((value / pagu[index]) * 1000) / 10 : null),
+    persenTerkontrak: terkontrak.map((value, index) => pagu[index] > 0 ? Math.round((value / pagu[index]) * 1000) / 10 : null)
   };
 }
 
 function renderChartProgresPersenHome() {
-  const wrapId = "wrapChartProgresPersenHome";
-  const canvasId = "chartProgresPersenHome";
   const agg = aggregateProgresPersenBulan();
-  if (!agg) return showChartEmpty(wrapId, canvasId);
-  hideChartEmpty(wrapId, canvasId);
-  destroyChart(canvasId);
-
-  const ctx = document.getElementById(canvasId).getContext("2d");
-  state.charts[canvasId] = new Chart(ctx, {
-    type: "line",
-    data: {
-      labels: agg.labels,
-      datasets: [{
-        label: "% Progres Penyerapan Terbayar",
-        data: agg.persen,
-        borderColor: CHART_COLORS.success,
-        backgroundColor: "rgba(22, 163, 74, 0.14)",
-        tension: 0.35,
-        fill: true,
-        pointRadius: 4,
-        pointBackgroundColor: CHART_COLORS.success
-      }]
+  const charts = [
+    {
+      wrapId: "wrapChartProgresTerbayarHome",
+      canvasId: "chartProgresTerbayarHome",
+      label: "% Progres Penyerapan Terbayar",
+      metricLabel: "Terbayar",
+      values: agg && agg.persenTerbayar,
+      rupiah: agg && agg.terbayar,
+      rupiahLabel: "Terbayar (Rp)",
+      color: CHART_COLORS.success,
+      background: "rgba(22, 163, 74, 0.14)"
     },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-        tooltip: { callbacks: { label: (ctx2) => `${ctx2.parsed.y}% terserap (kumulatif s.d. bulan ini)` } }
+    {
+      wrapId: "wrapChartProgresTerkontrakHome",
+      canvasId: "chartProgresTerkontrakHome",
+      label: "% Progres Penyerapan Terkontrak",
+      metricLabel: "Terkontrak",
+      values: agg && agg.persenTerkontrak,
+      rupiah: agg && agg.terkontrak,
+      rupiahLabel: "AI Terkontrak (Rp)",
+      color: CHART_COLORS.info,
+      background: "rgba(14, 165, 233, 0.14)"
+    }
+  ];
+
+  charts.forEach((config) => {
+    if (!agg) return showChartEmpty(config.wrapId, config.canvasId);
+    hideChartEmpty(config.wrapId, config.canvasId);
+    destroyChart(config.canvasId);
+
+    const ctx = document.getElementById(config.canvasId).getContext("2d");
+    // Nilai 0 hanya untuk garis dasar visual pada bulan kosong. Array sumber
+    // config.values tetap null sehingga bulan kosong tidak dianggap data nyata.
+    const displayValues = config.values.map((value) => value === null ? 0 : value);
+    state.charts[config.canvasId] = new Chart(ctx, {
+      type: "line",
+      data: {
+        // Label sumbu hanya nama bulan. Nominal dan persentase ditampilkan
+        // lengkap di tooltip agar tidak muncul dua kali.
+        labels: agg.labels,
+        datasets: [{
+          type: "line",
+          label: config.label,
+          data: displayValues,
+          borderColor: config.color,
+          backgroundColor: config.color,
+          tension: 0.35,
+          fill: false,
+          pointRadius: (context) => config.values[context.dataIndex] === null ? 0 : 4,
+          pointHoverRadius: (context) => config.values[context.dataIndex] === null ? 0 : 6,
+          pointBackgroundColor: config.color,
+          spanGaps: false
+        }]
       },
-      scales: {
-        x: { grid: { display: false }, ticks: { color: CHART_COLORS.text, font: { size: 11 } } },
-        y: {
-          grid: { color: CHART_COLORS.grid },
-          ticks: { color: CHART_COLORS.text, font: { size: 11 }, callback: (v) => v + "%" },
-          suggestedMin: 0,
-          suggestedMax: 100
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: "index", intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            filter: (item) => config.values[item.dataIndex] !== null,
+            callbacks: {
+              title: (items) => agg.labels[items[0].dataIndex],
+              label: (ctx2) => {
+                const index = ctx2.dataIndex;
+                const lines = [];
+                const rupiah = config.rupiah[index];
+                const persen = config.values[index];
+                const previous = index > 0 ? config.rupiah[index - 1] : null;
+                if (rupiah !== null && persen !== null) {
+                  lines.push(`${config.metricLabel}: ${formatRupiah(rupiah)} (${formatPercent(persen)})`);
+                  if (index > 0 && previous !== null && previous !== undefined) {
+                    const delta = rupiah - previous;
+                    const sign = delta > 0 ? "+" : delta < 0 ? "−" : "";
+                    lines.push(`Perubahan ${config.metricLabel}: ${sign}${formatRupiah(Math.abs(delta))}`);
+                  } else if (index > 0) {
+                    lines.push(`Perubahan ${config.metricLabel}: belum dapat dihitung (bulan sebelumnya kosong)`);
+                  }
+                }
+                return lines;
+              }
+            }
+          }
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: CHART_COLORS.text, font: { size: 11 } } },
+          y: {
+            grid: { color: CHART_COLORS.grid },
+            ticks: { color: config.color, font: { size: 10 }, callback: (v) => v + "%" },
+            suggestedMin: 0,
+            suggestedMax: 100
+          }
         }
       }
-    }
+    });
   });
 }
 
@@ -1376,18 +1537,18 @@ function aggregateRekap(data, groupKey) {
   const map = {};
   data.forEach((r) => {
     const key = r[groupKey] || "Tidak Diketahui";
-    if (!map[key]) map[key] = { pagu: 0, kontrak: 0, tertagih: 0, terbayar: 0 };
+    if (!map[key]) map[key] = { pagu: 0, kontrak: 0, tertagih: 0, terbayar: 0, sisa: 0 };
     map[key].pagu += r.pagu || 0;
     map[key].kontrak += r.aiTerkontrak || 0;
     map[key].tertagih += r.tertagih || 0;
     map[key].terbayar += r.terbayar || 0;
+    map[key].sisa += getSisaPagu(r);
   });
   return Object.keys(map)
     .map((key) => {
       const v = map[key];
-      const sisa = v.pagu - v.terbayar;
       const persen = v.pagu > 0 ? (v.terbayar / v.pagu) * 100 : 0;
-      return { label: key, ...v, sisa, persen };
+      return { label: key, ...v, persen };
     })
     .sort((a, b) => b.pagu - a.pagu);
 }
@@ -1914,9 +2075,11 @@ function renderKategoriDashboard(kategori) {
   const summary = computeSummaryFull(dataTahun);
   document.getElementById(`statPagu${suffix}`).textContent = formatRupiah(summary.totalPagu);
   document.getElementById(`statKontrak${suffix}`).textContent = formatRupiah(summary.totalKontrak);
+  document.getElementById(`statPersenKontrak${suffix}`).textContent = formatPercent(summary.persenKontrak);
   document.getElementById(`statTertagih${suffix}`).textContent = formatRupiah(summary.totalTertagih);
   document.getElementById(`statTerbayar${suffix}`).textContent = formatRupiah(summary.totalTerbayar);
   document.getElementById(`statSisa${suffix}`).textContent = formatRupiah(summary.totalSisa);
+  document.getElementById(`statPersenSisa${suffix}`).textContent = formatPercent(summary.persenSisa);
   document.getElementById(`statPersen${suffix}`).textContent = formatPercent(summary.persenRealisasi);
 
   // 3 grafik
@@ -2064,7 +2227,7 @@ function renderLaporan() {
     <div class="summary-card card-jumlah"><div class="summary-card-label">Total AI Terkontrak</div><div class="summary-card-value">${formatRupiah(summary.totalKontrak)}</div></div>
     <div class="summary-card card-info"><div class="summary-card-label">Total Tertagih</div><div class="summary-card-value">${formatRupiah(summary.totalTertagih)}</div></div>
     <div class="summary-card card-realisasi"><div class="summary-card-label">Total Realisasi</div><div class="summary-card-value">${formatRupiah(summary.totalTerbayar)}</div></div>
-    <div class="summary-card card-sisa"><div class="summary-card-label">Sisa Anggaran</div><div class="summary-card-value">${formatRupiah(summary.totalSisa)}</div></div>
+    <div class="summary-card card-sisa"><div class="summary-card-label">Sisa Pagu</div><div class="summary-card-value">${formatRupiah(summary.totalSisa)}</div></div>
     <div class="summary-card card-persen"><div class="summary-card-label">Persentase Realisasi</div><div class="summary-card-value">${formatPercent(summary.persenRealisasi)}</div></div>
   `;
 

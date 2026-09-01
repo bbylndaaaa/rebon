@@ -1,0 +1,204 @@
+:root {
+  --primary: #07549b;
+  --primary-dark: #063c73;
+  --accent: #00a2b8;
+  --text: #172033;
+  --muted: #687386;
+  --border: #dce3ec;
+  --danger: #b42318;
+  --danger-bg: #fef3f2;
+  --focus: rgba(7, 84, 155, 0.18);
+}
+
+@media (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .custom-cursor-active, .custom-cursor-active * { cursor:none !important; }
+  .pln-cursor-dot,.pln-cursor-glow { position:fixed; z-index:100000; top:0; left:0; pointer-events:none; opacity:0; border-radius:50%; transition:width .16s,height .16s,opacity .16s,background .16s; }
+  .custom-cursor-active .pln-cursor-dot,.custom-cursor-active .pln-cursor-glow { opacity:1; }
+  .pln-cursor-dot { width:7px; height:7px; background:#07549b; box-shadow:0 0 9px rgba(7,84,155,.65); }
+  .pln-cursor-glow { width:28px; height:28px; border:1px solid rgba(7,84,155,.42); background:rgba(0,162,184,.08); box-shadow:0 3px 16px rgba(7,84,155,.18); }
+  .pln-cursor-glow.is-hovering { width:40px; height:40px; border-color:rgba(0,162,184,.6); background:rgba(0,162,184,.12); }
+}
+
+* { box-sizing: border-box; }
+
+html, body { min-height: 100%; }
+
+body {
+  margin: 0;
+  color: var(--text);
+  font-family: "Inter", sans-serif;
+  background: #fff;
+}
+
+.login-page {
+  position: relative;
+  z-index: 1;
+  isolation: isolate;
+  display: grid;
+  min-height: 100vh;
+  min-height: 100dvh;
+  place-items: center;
+  padding: 32px 20px;
+}
+
+.login-page::before {
+  position: absolute;
+  z-index: -2;
+  inset: 0;
+  content: "";
+  background-image: url("assets/pln-up3-cirebon-login-bg.png");
+  background-position: center 45%;
+  background-size: cover;
+  background-repeat: no-repeat;
+  opacity: .70;
+}
+
+.login-page::after {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  content: "";
+  background: linear-gradient(120deg, rgba(203, 203, 203, 0.46), rgba(255, 255, 255, .28));
+}
+
+.login-card {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  width: min(100%, 430px);
+  padding: 40px;
+  border: 1px solid rgba(255, 255, 255, .9);
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(19, 49, 78, .14), 0 3px 12px rgba(19, 49, 78, .06);
+}
+
+.login-card::before {
+  position: absolute;
+  z-index: -1;
+  top: 50%;
+  left: 50%;
+  width: 255px;
+  height: 255px;
+  content: "";
+  background: url("assets/logo-pln.png") center / contain no-repeat;
+  opacity: .11;
+  transform: translate(-50%, -48%);
+  pointer-events: none;
+}
+
+.login-heading { margin-bottom: 27px; }
+.login-heading h1 { margin: 0 0 8px; font: 800 29px/1.2 "Plus Jakarta Sans", sans-serif; letter-spacing: -.035em; }
+.login-heading > p:last-child { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.6; }
+
+.login-alert {
+  margin: -5px 0 20px;
+  padding: 11px 13px;
+  border: 1px solid #fecdca;
+  border-radius: 10px;
+  color: var(--danger);
+  background: var(--danger-bg);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.form-field { margin-bottom: 19px; }
+.form-field label { display: block; margin-bottom: 8px; font-size: 13px; font-weight: 650; }
+
+.input-wrap { position: relative; }
+.input-wrap > svg {
+  position: absolute;
+  top: 50%;
+  left: 14px;
+  width: 19px;
+  height: 19px;
+  color: #7b8798;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.input-wrap input {
+  width: 100%;
+  height: 49px;
+  padding: 0 46px 0 43px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  outline: none;
+  color: var(--text);
+  background: #fff;
+  font: 500 14px "Inter", sans-serif;
+  transition: border-color .18s, box-shadow .18s;
+}
+
+.input-wrap input::placeholder { color: #9aa4b2; font-weight: 400; }
+.input-wrap input:focus { border-color: var(--primary); box-shadow: 0 0 0 4px var(--focus); }
+.form-field.invalid input { border-color: #f04438; box-shadow: 0 0 0 3px rgba(240, 68, 56, .1); }
+
+.password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 7px;
+  display: grid;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  color: #687386;
+  background: transparent;
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+
+.password-toggle:hover { color: var(--primary); background: #f1f6fa; }
+.password-toggle svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
+
+.field-error { display: block; min-height: 16px; padding-top: 5px; color: var(--danger); font-size: 11px; }
+
+.login-button {
+  display: grid;
+  width: 100%;
+  height: 50px;
+  margin-top: 3px;
+  place-items: center;
+  border: 0;
+  border-radius: 11px;
+  color: #fff;
+  background: linear-gradient(110deg, var(--primary-dark), var(--primary) 62%, #087ca0);
+  box-shadow: 0 10px 22px rgba(7, 84, 155, .22);
+  font: 700 14px "Inter", sans-serif;
+  cursor: pointer;
+  transition: transform .16s, box-shadow .16s, opacity .16s;
+}
+
+.login-button:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 13px 27px rgba(7, 84, 155, .29); }
+.login-button:active:not(:disabled) { transform: translateY(0); }
+.login-button:disabled { cursor: wait; opacity: .78; }
+.button-loading { display: none; align-items: center; gap: 9px; }
+.login-button.loading .button-label { display: none; }
+.login-button.loading .button-loading { display: flex; }
+
+.spinner { width: 17px; height: 17px; border: 2px solid rgba(255, 255, 255, .35); border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; }
+.login-footnote { margin: 25px 0 0; color: #8791a1; font-size: 11px; line-height: 1.5; text-align: center; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 520px) {
+  .login-page { padding: 20px 15px; }
+  .login-page::before {
+    background-image: url("assets/pln-up3-cirebon-login-mobile.png");
+    background-position: center center;
+  }
+  .login-card { padding: 30px 23px; border-radius: 18px; }
+  .login-heading h1 { font-size: 26px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; animation-duration: .01ms !important; }
+}

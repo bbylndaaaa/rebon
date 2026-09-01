@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Login Dashboard Monitoring PLN UP3 Cirebon">
+  <title>Login | Dashboard Monitoring</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="login.css">
+</head>
+<body>
+  <main class="login-page">
+    <section class="login-card" aria-labelledby="loginTitle">
+      <div class="login-heading">
+        <h1 id="loginTitle">Selamat datang</h1>
+        <p>Masuk untuk mengakses Dashboard Monitoring.</p>
+      </div>
+
+      <div class="login-alert" id="loginAlert" role="alert" aria-live="polite" hidden></div>
+
+      <form id="loginForm" novalidate>
+        <div class="form-field">
+          <label for="loginIdentity">Username</label>
+          <div class="input-wrap">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 21a8 8 0 0 0-16 0M12 13a5 5 0 1 0 0-10 5 5 0 0 0 0 10Z"/></svg>
+            <input id="loginIdentity" name="identity" type="text" autocomplete="username" inputmode="email" maxlength="120" placeholder="Masukkan username atau email" required>
+          </div>
+          <span class="field-error" id="identityError"></span>
+        </div>
+
+        <div class="form-field">
+          <label for="loginPassword">Password</label>
+          <div class="input-wrap">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+            <input id="loginPassword" name="password" type="password" autocomplete="current-password" maxlength="256" placeholder="Masukkan password" required>
+            <button class="password-toggle" id="passwordToggle" type="button" aria-label="Tampilkan password" aria-pressed="false">
+              <svg class="eye-open" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+          <span class="field-error" id="passwordError"></span>
+        </div>
+
+        <button class="login-button" id="loginButton" type="submit">
+          <span class="button-label">Login</span>
+          <span class="button-loading" aria-hidden="true"><span class="spinner"></span>Memverifikasi...</span>
+        </button>
+      </form>
+
+      <p class="login-footnote">Akses terbatas untuk pengguna yang telah terdaftar.</p>
+    </section>
+  </main>
+
+  <script src="login.js"></script>
+  <script src="cursor-effect.js"></script>
+</body>
+</html>

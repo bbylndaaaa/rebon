@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="id" class="auth-pending">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title> Dashboard Monitoring</title>
+  <style>.auth-pending body{visibility:hidden}</style>
+  <script src="auth.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Nunito:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="portal.css">
+  <link rel="prefetch" href="index.html">
+  <link rel="prefetch" href="style.css">
+  <link rel="prefetch" href="script.js">
+  <link rel="prefetch" href="kpi.js">
+</head>
+<body>
+  <main class="portal-page" aria-labelledby="portalTitle">
+    <div class="portal-decoration portal-decoration-one"></div>
+    <div class="portal-decoration portal-decoration-two"></div>
+    <button class="portal-logout" id="portalLogoutBtn" type="button">Logout</button>
+    <section class="portal-content">
+      <div class="portal-logo-wrap"><img src="assets/logo.svg" alt="Logo PLN"></div>
+      <p class="portal-eyebrow">Dashboard Monitoring</p>
+      <h1 id="portalTitle">PLN UP3 Cirebon</h1>
+      <p class="portal-subtitle">Divisi Perencanaan</p>
+      <nav class="portal-dashboard-list" aria-label="Pilihan dashboard">
+        <a class="portal-dashboard-btn" href="index.html?app=skki">
+          <span class="portal-dashboard-copy"><strong>Dashboard SKKI</strong><small>Monitoring anggaran dan realisasi</small></span>
+          <span class="portal-dashboard-arrow" aria-hidden="true">&#8250;</span>
+        </a>
+        <a class="portal-dashboard-btn" href="index.html?app=kpi">
+          <span class="portal-dashboard-copy"><strong>Dashboard KPI</strong><small>Monitoring kinerja UP3 dan ULP</small></span>
+          <span class="portal-dashboard-arrow" aria-hidden="true">&#8250;</span>
+        </a>
+      </nav>
+    </section>
+  </main>
+  <script src="cursor-effect.js"></script>
+</body>
+</html>
