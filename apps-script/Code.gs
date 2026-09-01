@@ -1,32 +1,4 @@
-/**
- * ============================================================================
- *  BACKEND — KPI MONITORING UP3 CIREBON (Google Apps Script Web App)
- * ============================================================================
- *  CARA PAKAI:
- *  1. Buka Google Sheet sumber data (hasil ekspor: Realisasi_KPI_2026_Cirebon).
- *  2. Extensions -> Apps Script, tempel file ini sebagai Code.gs.
- *  3. Cek/sesuaikan konstanta di CONFIG di bawah (nama sheet & posisi sel)
- *     supaya cocok dengan Sheet ASLI kamu — file .xlsx yang diunggah ke saya
- *     kemungkinan sedikit beda posisi sel dengan Google Sheet aslinya
- *     (terutama akibat cell yang di-merge), jadi WAJIB dicek ulang manual.
- *  4. Deploy -> New deployment -> Web app.
- *     - Execute as: Me
- *     - Who has access: Anyone (atau "Anyone with Google Account" sesuai kebijakan)
- *  5. Copy URL deployment (.../exec), lalu isi ke KPI_CONFIG.API_URL di kpi.js
- *     dan set KPI_CONFIG.USE_LIVE = true.
- *
- *  DESAIN:
- *  - Sheet ULP (KTA/KNG/SBR/CLD/CLM/CRB) & DATA PENGUSAHAAN dibaca langsung
- *    (statis per baris), tidak butuh dropdown apa pun -> cepat & aman di-cache.
- *  - Sheet 'scoreboard' & 'PER PERSPEKTIF' di source aslinya digerakkan oleh
- *    dropdown Periode/Area (nilainya lalu dipakai formula2 di sheet lain).
- *    Untuk mendukung filter Bulan & ULP dari dashboard, endpoint
- *    getScoreboard() akan MENGISI sel dropdown itu sesuai parameter request,
- *    memaksa recalculation, baru membaca hasilnya. Ini realtime tapi lebih
- *    lambat (~1-3 detik) — cocok dipanggil hanya saat pindah halaman/filter,
- *    bukan polling.
- * ============================================================================
- */
+
 
 const CONFIG = {
   SHEET_ULP: ["CRB", "KTA", "KNG", "SBR", "CLD", "CLM"],
@@ -60,8 +32,10 @@ const CONFIG = {
   ULP_PERIODE_CELL: "L3", // nilai dropdown periode aktual pada sheet ULP
 
   // --- DATA PENGUSAHAAN: blok bulanan 2026 (kolom D..O) ---
-  PENGUSAHAAN_ROW_START: 5,
-  PENGUSAHAAN_ROW_END: 43,
+  // Mulai dari baris judul bagian agar setiap baris data mendapat nilai
+  // `bagian` dan tidak habis tersaring di tabel ringkas frontend.
+  PENGUSAHAAN_ROW_START: 4,
+  PENGUSAHAAN_ROW_END: 270,
   PENGUSAHAAN_COL_LABEL: 2,
   PENGUSAHAAN_COL_SATUAN: 3,
   PENGUSAHAAN_MONTHLY_START: 4, // 12 kolom, Jan..Dec 2026
@@ -147,6 +121,9 @@ function doGet(e) {
   const action = String(e.parameter.action || "all").toLowerCase();
   let payload;
   try {
+    if (action !== "health" && !validateAuthToken_(e.parameter.token)) {
+      return jsonOutput_({ ok: false, error: "Unauthorized" });
+    }
     validateRequest_(action, e.parameter);
     if (action === "all") payload = getAllData_();
     else if (action === "ulp") payload = getUlpData_();
@@ -161,7 +138,27 @@ function doGet(e) {
     console.error(err && err.stack ? err.stack : err);
     payload = { error: "Permintaan data tidak valid atau layanan sedang bermasalah." };
   }
-  return ContentService.createTextOutput(JSON.stringify(payload)).setMimeType(ContentService.MimeType.JSON);
+  return jsonOutput_(payload);
+}
+
+function doPost(e) {
+  let payload = {};
+  try {
+    payload = JSON.parse((e && e.postData && e.postData.contents) || "{}");
+    const action = String(payload.action || "").toLowerCase();
+    if (action === "login") return jsonOutput_(loginAdmin_(payload.identity, payload.password));
+    if (action === "validate") return jsonOutput_(validateSessionResponse_(payload.token));
+    if (action === "logout") return jsonOutput_(logoutAdmin_(payload.token));
+    return jsonOutput_({ ok: false, error: "Permintaan tidak valid." });
+  } catch (err) {
+    console.error(err && err.stack ? err.stack : err);
+    return jsonOutput_({ ok: false, error: "Layanan autentikasi sedang bermasalah." });
+  }
+}
+
+function jsonOutput_(value) {
+  return ContentService.createTextOutput(JSON.stringify(value))
+    .setMimeType(ContentService.MimeType.JSON);
 }
 
 function validateRequest_(action, params) {
@@ -401,10 +398,26 @@ function getPengusahaanData_() {
   const rows = sh.getRange(CONFIG.PENGUSAHAAN_ROW_START, 1, CONFIG.PENGUSAHAAN_ROW_END - CONFIG.PENGUSAHAAN_ROW_START + 1, 30).getValues();
   const out = [];
   let bagian = null;
+  let unit = "UP3 Cirebon";
+  let tahun = "2026";
   rows.forEach((row, i) => {
+    const sourceRow = CONFIG.PENGUSAHAAN_ROW_START + i;
+    const marker = row[0];
     const label = row[CONFIG.PENGUSAHAAN_COL_LABEL - 1];
     const satuan = row[CONFIG.PENGUSAHAAN_COL_SATUAN - 1];
+    // Blok ULP ditandai oleh nama unit di kolom A, kemudian tahun pada
+    // baris berikutnya. Simpan konteks tersebut pada setiap baris data.
+    if (typeof marker === "string" && /^ULP\s+/i.test(marker.trim()) && !label) {
+      unit = marker.trim();
+      bagian = "DATA PENGUSAHAAN ULP";
+      return;
+    }
+    if (typeof marker === "number" && marker >= 2000 && marker <= 2100 && !label) {
+      tahun = String(marker);
+      return;
+    }
     if (!label) return;
+    if (String(label).trim().toUpperCase() === "KOMPONEN") return;
     if (!satuan && !row[CONFIG.PENGUSAHAAN_MONTHLY_START - 1]) { bagian = String(label).trim(); return; }
     const monthly2026 = [];
     for (let m = 0; m < 12; m++) monthly2026.push(num_(row[CONFIG.PENGUSAHAAN_MONTHLY_START - 1 + m]));
@@ -412,7 +425,7 @@ function getPengusahaanData_() {
     CONFIG.PENGUSAHAAN_YEARLY_YEARS.forEach((yr, idx) => {
       yearly[yr] = num_(row[CONFIG.PENGUSAHAAN_YEARLY_START_COL - 1 + idx]);
     });
-    out.push({ bagian: bagian, label: String(label).trim(), satuan: satuan ? String(satuan) : null, monthly2026: monthly2026, yearly: yearly });
+    out.push({ sourceSheet: CONFIG.SHEET_PENGUSAHAAN, sourceRow: sourceRow, unit: unit, bagian: bagian, tahun: tahun, label: String(label).trim(), satuan: satuan ? String(satuan) : null, monthly2026: monthly2026, yearly: yearly });
   });
   return out;
 }
@@ -716,4 +729,153 @@ function testDoGet_Movement() {
 }
 function testDoGet_ValidateConfig() {
   validateCellConfig_();
+}
+
+/* ========================================================================== 
+ * AUTENTIKASI ADMIN
+ * Credential disimpan di Script Properties, bukan di source code/Google Sheet.
+ * ========================================================================== */
+
+const AUTH_SESSION_SECONDS = 21600; // 6 jam; batas maksimum Script Cache
+const AUTH_MAX_ATTEMPTS = 5;
+const AUTH_ATTEMPT_WINDOW_SECONDS = 900;
+
+function loginAdmin_(identity, password) {
+  identity = String(identity || "").trim().toLowerCase();
+  password = String(password || "");
+  if (!identity || identity.length > 120 || !password || password.length > 256) {
+    return { ok: false, error: "Username/email atau password tidak sesuai." };
+  }
+
+  const props = PropertiesService.getScriptProperties();
+  const attemptKey = "auth_attempt:" + digestText_(identity);
+  const cache = CacheService.getScriptCache();
+  const attempts = Number(cache.get(attemptKey) || 0);
+  if (attempts >= AUTH_MAX_ATTEMPTS) {
+    return { ok: false, error: "Terlalu banyak percobaan. Silakan coba lagi beberapa menit." };
+  }
+
+  const configuredIdentity = String(props.getProperty("ADMIN_USERNAME") || "").trim().toLowerCase();
+  const salt = props.getProperty("ADMIN_PASSWORD_SALT") || "";
+  const storedHash = props.getProperty("ADMIN_PASSWORD_HASH") || "";
+  const valid = configuredIdentity && salt && storedHash &&
+    constantTimeEqual_(configuredIdentity, identity) &&
+    constantTimeEqual_(storedHash, hashPassword_(password, salt));
+
+  if (!valid) {
+    cache.put(attemptKey, String(attempts + 1), AUTH_ATTEMPT_WINDOW_SECONDS);
+    return { ok: false, error: "Username/email atau password tidak sesuai." };
+  }
+
+  cache.remove(attemptKey);
+  const token = Utilities.getUuid() + Utilities.getUuid();
+  const expiresAt = Date.now() + AUTH_SESSION_SECONDS * 1000;
+  const session = {
+    name: props.getProperty("ADMIN_DISPLAY_NAME") || "Admin",
+    role: "Admin",
+    expiresAt: expiresAt
+  };
+  // CacheService bersifat best-effort dan entri dapat hilang sebelum masa
+  // berlakunya habis. Sesi autentikasi harus persisten antar-eksekusi Web App,
+  // jadi simpan di Script Properties.
+  props.setProperty(sessionCacheKey_(token), JSON.stringify(session));
+  return {
+    ok: true,
+    token: token,
+    expiresAt: new Date(expiresAt).toISOString(),
+    user: { name: session.name, role: session.role }
+  };
+}
+
+function validateSessionResponse_(token) {
+  const session = getAuthSession_(token);
+  if (!session) return { ok: false, error: "Sesi tidak valid atau sudah berakhir." };
+  return { ok: true, user: { name: session.name, role: session.role }, expiresAt: new Date(session.expiresAt).toISOString() };
+}
+
+function validateAuthToken_(token) {
+  return !!getAuthSession_(token);
+}
+
+function getAuthSession_(token) {
+  token = String(token || "");
+  if (token.length < 40 || token.length > 160) return null;
+  const props = PropertiesService.getScriptProperties();
+  const key = sessionCacheKey_(token);
+  const raw = props.getProperty(key);
+  if (!raw) return null;
+  try {
+    const session = JSON.parse(raw);
+    if (!session.expiresAt || Date.now() >= Number(session.expiresAt)) {
+      props.deleteProperty(key);
+      return null;
+    }
+    return session;
+  } catch (err) {
+    props.deleteProperty(key);
+    return null;
+  }
+}
+
+function logoutAdmin_(token) {
+  token = String(token || "");
+  if (token) PropertiesService.getScriptProperties().deleteProperty(sessionCacheKey_(token));
+  return { ok: true };
+}
+
+function sessionCacheKey_(token) {
+  const secret = PropertiesService.getScriptProperties().getProperty("AUTH_TOKEN_SECRET") || "";
+  return "auth_session:" + digestText_(secret + "\u0000" + String(token || ""));
+}
+
+function hashPassword_(password, salt) {
+  let digest = Utilities.computeDigest(
+    Utilities.DigestAlgorithm.SHA_256,
+    String(salt) + "\u0000" + String(password),
+    Utilities.Charset.UTF_8
+  );
+  for (let i = 0; i < 799; i++) {
+    digest = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, digest);
+  }
+  return Utilities.base64EncodeWebSafe(digest);
+}
+
+function digestText_(value) {
+  return Utilities.base64EncodeWebSafe(Utilities.computeDigest(
+    Utilities.DigestAlgorithm.SHA_256,
+    String(value),
+    Utilities.Charset.UTF_8
+  )).replace(/=+$/, "");
+}
+
+function constantTimeEqual_(left, right) {
+  left = String(left || "");
+  right = String(right || "");
+  let mismatch = left.length ^ right.length;
+  const length = Math.max(left.length, right.length);
+  for (let i = 0; i < length; i++) mismatch |= (left.charCodeAt(i) || 0) ^ (right.charCodeAt(i) || 0);
+  return mismatch === 0;
+}
+
+// SETUP SEKALI:
+// 1) Isi ADMIN_USERNAME, ADMIN_INITIAL_PASSWORD, dan ADMIN_DISPLAY_NAME di
+//    Project Settings > Script Properties.
+// 2) Jalankan fungsi ini sekali dari editor Apps Script.
+// 3) Password awal otomatis dihapus dan hanya hash+salt yang dipertahankan.
+function setupAdminFromProperties() {
+  const props = PropertiesService.getScriptProperties();
+  const username = String(props.getProperty("ADMIN_USERNAME") || "").trim().toLowerCase();
+  const initialPassword = props.getProperty("ADMIN_INITIAL_PASSWORD") || "";
+  if (!username || !initialPassword) throw new Error("Isi ADMIN_USERNAME dan ADMIN_INITIAL_PASSWORD di Script Properties terlebih dahulu.");
+  if (initialPassword.length < 10) throw new Error("Password Admin minimal 10 karakter.");
+
+  const salt = Utilities.getUuid() + Utilities.getUuid();
+  props.setProperties({
+    ADMIN_USERNAME: username,
+    ADMIN_PASSWORD_SALT: salt,
+    ADMIN_PASSWORD_HASH: hashPassword_(initialPassword, salt),
+    AUTH_TOKEN_SECRET: props.getProperty("AUTH_TOKEN_SECRET") || Utilities.getUuid() + Utilities.getUuid()
+  }, false);
+  props.deleteProperty("ADMIN_INITIAL_PASSWORD");
+  Logger.log("Akun Admin berhasil disiapkan. ADMIN_INITIAL_PASSWORD telah dihapus.");
 }
