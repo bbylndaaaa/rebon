@@ -1,5 +1,15 @@
 "use strict";
 
+// Sembunyikan nama file HTML dari kolom alamat. Query dashboard tetap
+// dipertahankan agar pilihan SKKI/KPI tidak berubah saat halaman dimuat ulang.
+if (/\/(?:portal|index)\.html$/.test(window.location.pathname)) {
+  window.history.replaceState(
+    null,
+    "",
+    "/" + window.location.search + window.location.hash
+  );
+}
+
 window.AUTH_CONFIG = Object.freeze({
   API_URL: "https://script.google.com/macros/s/AKfycbyF-avTwks-UU-udRxWXRWqtIjwQ2qvhbgpvIaGxjT9stb-BwzXytsUL4y1MHS3MhtHKQ/exec",
   LOGIN_URL: "login.html",

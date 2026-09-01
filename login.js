@@ -1,5 +1,10 @@
 "use strict";
 
+// Rapikan alamat yang terlihat tanpa mengubah file atau tampilan halaman.
+if (window.location.pathname.endsWith("/login.html")) {
+  window.history.replaceState(null, "", "/");
+}
+
 const LOGIN_CONFIG = Object.freeze({
   API_URL: "https://script.google.com/macros/s/AKfycbyF-avTwks-UU-udRxWXRWqtIjwQ2qvhbgpvIaGxjT9stb-BwzXytsUL4y1MHS3MhtHKQ/exec",
   DASHBOARD_URL: "portal.html",
