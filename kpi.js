@@ -29,7 +29,7 @@ const KPI = (function () {
     if (!el) {
       el = document.createElement("div");
       el.className = "kpi-loading-overlay";
-      el.innerHTML = `<div class="kpi-spinner"></div><div class="kpi-loading-text">Memuat data KPI…</div>`;
+      el.innerHTML = `<div class="kpi-spinner"></div><div class="kpi-loading-text">Memuat data…</div>`;
       container.appendChild(el);
     }
     return el;
@@ -39,15 +39,12 @@ const KPI = (function () {
     if (!container) return;
     const el = ensureLoadingOverlay(container);
     el.classList.add("show");
-    // Request pertama ke Apps Script bisa lambat (cold start + hitung ulang
-    // formula sheet). Kalau loading sudah >8 detik, ganti teksnya supaya user
-    // tidak mengira aplikasinya macet.
     const txt = el.querySelector(".kpi-loading-text");
     if (txt && !el.dataset.longTimer) {
       el.dataset.longTimer = "1";
       setTimeout(() => {
         if (el.classList.contains("show")) {
-          txt.textContent = "Masih memproses… request pertama ke Google Sheets/Apps Script memang bisa lama (cold start + hitung ulang formula sheet).";
+          txt.textContent = "Memuat data… Mohon tunggu.";
         }
         delete el.dataset.longTimer;
       }, 8000);
@@ -499,31 +496,22 @@ const KPI = (function () {
         r.rankingLabel = null;
       }
     });
-    // "CRB" = UP3 total, bukan salah satu dari 5 ULP yang saling diranking,
-    // jadi tidak ikut disortir bersama 5 ULP itu.
     const ulpRows = ranking.filter((r) => r.unit !== "CRB");
     const crbRow = ranking.find((r) => r.unit === "CRB");
-
     const needsFallback = ulpRows.some((r) => typeof r.ranking !== "number" && !r.rankingLabel && typeof r.nko === "number");
     if (needsFallback) {
-      const byNko = ulpRows
-        .slice()
-        .sort((a, b) => {
-          const an = typeof a.nko === "number" ? a.nko : -Infinity;
-          const bn = typeof b.nko === "number" ? b.nko : -Infinity;
-          return bn - an;
-        });
+      const byNko = ulpRows.slice().sort((a, b) => {
+        const an = typeof a.nko === "number" ? a.nko : -Infinity;
+        const bn = typeof b.nko === "number" ? b.nko : -Infinity;
+        return bn - an;
+      });
       const fallbackRank = {};
       byNko.forEach((r, i) => { fallbackRank[r.unit] = i + 1; });
       ulpRows.forEach((r) => {
         if (typeof r.ranking !== "number" && !r.rankingLabel && typeof r.nko === "number") r.ranking = fallbackRank[r.unit];
       });
     }
-    // UP3 (CRB) HANYA di-fallback ke angka 1 kalau memang benar-benar tidak
-    // ada label apa pun dari sheet (error formula/kosong total) -- kalau
-    // sheet sudah kasih label "K-1", itu dipakai apa adanya, TIDAK ditimpa.
     if (crbRow && typeof crbRow.ranking !== "number" && !crbRow.rankingLabel) crbRow.ranking = 1;
-
     return Object.assign({}, p, { ranking });
   }
 

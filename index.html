@@ -8,6 +8,17 @@
   </script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- PWA: metadata only; existing application UI and scripts are unchanged. -->
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0b4da2">
+<meta name="application-name" content="Dashboard">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Dashboard">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="apple-touch-icon" sizes="192x192" href="icons/icon-192.png">
+<script src="pwa.js" defer></script>
+<!-- /PWA -->
 <title>Dashboard Monitoring</title>
 <style>.auth-pending body{visibility:hidden}</style>
 <script src="auth.js"></script>
@@ -23,7 +34,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=20260907-1">
 
 <style>
   .proporsi-toggle { display:flex; gap:8px; margin:-6px 0 14px; flex-wrap:wrap; }
@@ -93,12 +104,7 @@
         <span class="nav-label">Monitoring Data</span>
       </button>
 
-      <button class="nav-item" data-page="progress-ai">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg>
-        <span class="nav-label">Progress AI</span>
-      </button>
-
-      <button class="nav-item" data-page="rekap-program">
+<button class="nav-item" data-page="rekap-program">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
         <span class="nav-label">Rekap Program</span>
       </button>
@@ -151,10 +157,27 @@
         <span class="dot"></span>
         <div>
           <span class="sidebar-live-label">Status data KPI</span>
-          <span class="kpi-conn-text">Memuat data live</span>
+          <span class="kpi-conn-text">Memuat data…</span>
         </div>
       </div>
-      <div class="sidebar-copyright">© 2026</div>
+    </div>
+    <div class="sidebar-landscape" aria-hidden="true">
+      <svg viewBox="0 0 264 270" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" focusable="false">
+        <g fill="#ffffff" opacity=".18"><path d="M0 75Q15 60 31 71Q38 48 55 64Q73 59 83 80H0Z"/><path d="M163 54Q177 37 193 47Q206 22 222 43Q247 38 264 57Z"/></g>
+        <path fill="#b8dcee" d="M0 167L38 131L71 149L114 114L161 155L201 131L264 165V270H0Z"/>
+        <path fill="#a1d0e5" d="M0 200Q40 162 88 184T167 180T264 183V270H0Z"/>
+        <path fill="#84bfc9" d="M0 231Q54 192 117 218T264 210V270H0Z"/>
+<g transform="translate(143 144) scale(0.36)" fill="none" stroke="#8cb4c7" stroke-width="1.35" stroke-linejoin="round"><path d="M-27 220L0 0L27 220M-20 166H20M-14 112H14M-9 69H9M-5 34H5M-27 220L20 166L-14 112L9 69L-5 34L0 0M27 220L-20 166L14 112L-9 69L5 34M-33 57H33L0 37ZM-40 98H40L0 76ZM-33 57V66M33 57V66M-40 98V107M40 98V107"/></g><g transform="translate(246 137) scale(0.39)" fill="none" stroke="#8cb4c7" stroke-width="1.35" stroke-linejoin="round"><path d="M-27 220L0 0L27 220M-20 166H20M-14 112H14M-9 69H9M-5 34H5M-27 220L20 166L-14 112L9 69L-5 34L0 0M27 220L-20 166L14 112L-9 69L5 34M-33 57H33L0 37ZM-40 98H40L0 76ZM-33 57V66M33 57V66M-40 98V107M40 98V107"/></g><g transform="translate(70 12) scale(1.04)" fill="none" stroke="#4b809d" stroke-width="1.35" stroke-linejoin="round"><path d="M-27 220L0 0L27 220M-20 166H20M-14 112H14M-9 69H9M-5 34H5M-27 220L20 166L-14 112L9 69L-5 34L0 0M27 220L-20 166L14 112L-9 69L5 34M-33 57H33L0 37ZM-40 98H40L0 76ZM-33 57V66M33 57V66M-40 98V107M40 98V107"/></g><g transform="translate(209 81) scale(0.72)" fill="none" stroke="#6395af" stroke-width="1.35" stroke-linejoin="round"><path d="M-27 220L0 0L27 220M-20 166H20M-14 112H14M-9 69H9M-5 34H5M-27 220L20 166L-14 112L9 69L-5 34L0 0M27 220L-20 166L14 112L-9 69L5 34M-33 57H33L0 37ZM-40 98H40L0 76ZM-33 57V66M33 57V66M-40 98V107M40 98V107"/></g><g fill="none" stroke="#4b809d" stroke-width="1" opacity=".7"><path d="M-22 58Q10 99 36 81M104 81Q155 159 185 129M233 129Q249 141 280 124M-20 99Q10 141 28 123M112 123Q154 183 180 158M238 158Q257 173 280 152M-20 48Q8 84 36 72M104 72Q152 148 185 122M-20 90Q8 128 28 114M112 114Q152 172 180 151"/></g>
+<g fill="#6895a4"><path d="M126 226V185H129V226ZM159 226V181H162V226ZM188 226V186H191V226Z"/><path d="M121 186H196V189H121Z"/></g>
+<g stroke="#9abdc3" stroke-width="2" fill="none"><path d="M134 179V197M140 179V197M169 177V197M176 177V197M130 182H144M130 187H144M165 180H180M165 185H180M148 207V191H184V211"/></g>
+<g fill="#77a5ae"><rect x="134" y="207" width="15" height="24" rx="2"/><rect x="159" y="205" width="15" height="25" rx="2"/><rect x="184" y="209" width="13" height="23" rx="2"/></g>
+<g stroke="#386680" stroke-width="1"><path d="M138 211V227M142 211V227M146 211V227M163 209V226M167 209V226M171 209V226"/></g>
+<path fill="#a9c8c9" d="M113 233H216V254H113Z"/><path fill="#6e9fae" d="M108 228H221V234H108Z"/>
+<path fill="#477894" d="M122 240H134V254H122ZM144 240H154V247H144ZM162 240H172V247H162ZM180 240H190V247H180ZM198 240H208V247H198Z"/>
+<path fill="#70b8a2" d="M0 250Q42 229 88 247T164 253T264 234V270H0Z"/>
+<path fill="#a2c3b9" d="M0 265Q52 241 98 251T196 266L230 270H166Q105 249 72 257L31 270H0Z"/>
+<g transform="translate(15 229) scale(1)"><path stroke="#a6c3a9" stroke-width="2" d="M0-3V19"/><g fill="#66a68e"><circle cy="-12" r="10"/><circle cx="-7" cy="-3" r="9"/><circle cx="8" cy="-3" r="9"/></g><path stroke="#aac6ad" stroke-width="1.2" fill="none" d="M0 12V-5M0 6L-5 1M0 2L5-3"/></g><g transform="translate(36 241) scale(0.72)"><path stroke="#a6c3a9" stroke-width="2" d="M0-3V19"/><g fill="#66a68e"><circle cy="-12" r="10"/><circle cx="-7" cy="-3" r="9"/><circle cx="8" cy="-3" r="9"/></g><path stroke="#aac6ad" stroke-width="1.2" fill="none" d="M0 12V-5M0 6L-5 1M0 2L5-3"/></g><g transform="translate(99 246) scale(0.72)"><path stroke="#a6c3a9" stroke-width="2" d="M0-3V19"/><g fill="#66a68e"><circle cy="-12" r="10"/><circle cx="-7" cy="-3" r="9"/><circle cx="8" cy="-3" r="9"/></g><path stroke="#aac6ad" stroke-width="1.2" fill="none" d="M0 12V-5M0 6L-5 1M0 2L5-3"/></g><g transform="translate(231 245) scale(0.85)"><path stroke="#a6c3a9" stroke-width="2" d="M0-3V19"/><g fill="#66a68e"><circle cy="-12" r="10"/><circle cx="-7" cy="-3" r="9"/><circle cx="8" cy="-3" r="9"/></g><path stroke="#aac6ad" stroke-width="1.2" fill="none" d="M0 12V-5M0 6L-5 1M0 2L5-3"/></g><g transform="translate(253 228) scale(1.1)"><path stroke="#a6c3a9" stroke-width="2" d="M0-3V19"/><g fill="#66a68e"><circle cy="-12" r="10"/><circle cx="-7" cy="-3" r="9"/><circle cx="8" cy="-3" r="9"/></g><path stroke="#aac6ad" stroke-width="1.2" fill="none" d="M0 12V-5M0 6L-5 1M0 2L5-3"/></g><g transform="translate(7 256) scale(0.6)"><path stroke="#a6c3a9" stroke-width="2" d="M0-3V19"/><g fill="#66a68e"><circle cy="-12" r="10"/><circle cx="-7" cy="-3" r="9"/><circle cx="8" cy="-3" r="9"/></g><path stroke="#aac6ad" stroke-width="1.2" fill="none" d="M0 12V-5M0 6L-5 1M0 2L5-3"/></g><g transform="translate(185 258) scale(0.55)"><path stroke="#a6c3a9" stroke-width="2" d="M0-3V19"/><g fill="#66a68e"><circle cy="-12" r="10"/><circle cx="-7" cy="-3" r="9"/><circle cx="8" cy="-3" r="9"/></g><path stroke="#aac6ad" stroke-width="1.2" fill="none" d="M0 12V-5M0 6L-5 1M0 2L5-3"/></g>      </svg>
+      <div class="sidebar-copyright">&copy; 2026</div>
     </div>
   </aside>
 
@@ -212,6 +235,11 @@
           </div>
         </div>
 
+        <div class="skki-loading-notice" id="skkiLoadingNotice" role="status" aria-live="polite">
+          <span class="skki-loading-spinner" aria-hidden="true"></span>
+          <span id="skkiLoadingText">Memuat data…</span>
+        </div>
+
         <!-- Card Summary -->
         <div class="summary-grid summary-grid-home" id="summaryGrid">
           <div class="summary-card card-pagu">
@@ -235,16 +263,16 @@
 
           <div class="summary-card card-info">
             <div class="summary-card-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h6M9 9h1"/></svg>
             </div>
-            <div class="summary-card-label">Total Tertagih</div>
+            <div class="summary-card-label">Progres Pengadaan</div>
             <div class="summary-card-value" id="statTotalTertagih">Rp 0</div>
             <div class="summary-card-sub">Nilai yang sudah ditagihkan</div>
           </div>
 
           <div class="summary-card card-realisasi">
             <div class="summary-card-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>
             </div>
             <div class="summary-card-label">Total Terbayar</div>
             <div class="summary-card-value" id="statTotalRealisasi">Rp 0</div>
@@ -253,7 +281,7 @@
 
           <div class="summary-card card-sisa">
             <div class="summary-card-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-2"/><path d="M21 8h-6a4 4 0 0 0 0 8h6V8z"/><path d="M16 12h.01"/></svg>
             </div>
             <div class="summary-card-label">Sisa Pagu</div>
             <div class="summary-card-value" id="statSisaAnggaran">Rp 0</div>
@@ -261,14 +289,7 @@
             <div class="summary-card-sub">Sisa pagu terhadap total pagu</div>
           </div>
 
-          <div class="summary-card card-persen">
-            <div class="summary-card-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6"/><rect x="12" y="8" width="3" height="10"/><rect x="17" y="5" width="3" height="13"/></svg>
-            </div>
-            <div class="summary-card-label">Persentase Realisasi</div>
-            <div class="summary-card-value" id="statPersenRealisasi">0%</div>
-            <div class="summary-card-sub">Realisasi terbayar terhadap total pagu</div>
-          </div>
+          
 
           <div class="summary-card card-jumlah">
             <div class="summary-card-icon">
@@ -281,7 +302,7 @@
         </div>
 
         <!-- Ringkasan grafik singkat + progress -->
-        <div class="dashboard-grid">
+        <div class="dashboard-grid budget-overview-grid">
           <div class="panel">
             <div class="panel-header">
               <div>
@@ -316,6 +337,17 @@
               </div>
             </div>
           </div>
+                  <div class="panel">
+            <div class="panel-header">
+              <div>
+                <h3>Status Anggaran</h3>
+                <div class="panel-sub">Distribusi nilai Terbayar, Terkontrak belum terbayar, dan Sisa Pagu belum terkontrak</div>
+              </div>
+            </div>
+            <div class="chart-canvas-wrap" id="wrapChartStatusHome">
+              <canvas id="chartStatusHome"></canvas>
+            </div>
+          </div>
         </div>
 
         <div class="monthly-progress-stack">
@@ -342,19 +374,7 @@
           </div>
         </div>
 
-        <div>
-          <div class="panel">
-            <div class="panel-header">
-              <div>
-                <h3>Status Anggaran</h3>
-                <div class="panel-sub">Distribusi nilai Terbayar, Terkontrak belum terbayar, dan Sisa Pagu belum terkontrak</div>
-              </div>
-            </div>
-            <div class="chart-canvas-wrap" id="wrapChartStatusHome">
-              <canvas id="chartStatusHome"></canvas>
-            </div>
-          </div>
-        </div>
+
 
         <!-- Grafik per Program (data berjalan) -->
         <div class="panel">
@@ -507,7 +527,7 @@
             <div class="summary-card-sub">Realisasi terkontrak terhadap pagu</div>
           </div>
           <div class="summary-card card-info">
-            <div class="summary-card-label">Total Tertagih</div>
+            <div class="summary-card-label">Progres Pengadaan</div>
             <div class="summary-card-value" id="statTertagihMurni">Rp 0</div>
           </div>
           <div class="summary-card card-realisasi">
@@ -526,12 +546,27 @@
           </div>
         </div>
 
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <h3>Detail PRK/POS — Kategori Murni</h3>
+              <div class="panel-sub" id="detailTableSubMurni">Menampilkan seluruh baris data (semua tahun)</div>
+            </div>
+          </div>
+          <div class="table-scroll">
+            <table class="data-table prk-table-compact">
+              <thead><tr><th class="heading-number">No</th><th>PRK/POS</th><th>Uraian PRK/POS</th><th class="heading-number">Pagu</th><th class="heading-number">Terkontrak</th><th class="heading-number">Terbayar</th><th class="heading-number">Sisa Pagu</th></tr></thead>
+              <tbody id="detailTableMurniTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
         <div class="dashboard-grid-2">
           <div class="panel">
             <div class="panel-header">
               <div>
-                <h3>Progres Penyerapan Terbayar per Tahun</h3>
-                <div class="panel-sub">Persentase terbayar terhadap pagu, dibandingkan antar tahun</div>
+                <h3>Pagu vs Terkontrak per PRK/POS</h3>
+                <div class="panel-sub">Perbandingan pagu dan AI terkontrak untuk setiap PRK/POS kategori Murni</div>
               </div>
             </div>
             <div class="chart-canvas-wrap" style="height:300px;" id="wrapChartProgresTahunMurni">
@@ -542,8 +577,8 @@
           <div class="panel">
             <div class="panel-header">
               <div>
-                <h3>Kontrak vs Tertagih vs Terbayar</h3>
-                <div class="panel-sub">Perbandingan 3 metrik pada tahun terpilih</div>
+                <h3>Pagu vs Terbayar per PRK/POS</h3>
+                <div class="panel-sub">Perbandingan pagu dan realisasi terbayar untuk setiap PRK/POS kategori Murni</div>
               </div>
             </div>
             <div class="chart-canvas-wrap" style="height:300px;" id="wrapChartBandingMurni">
@@ -556,23 +591,8 @@
           <div class="panel-header"><div><h3>Rekap per Tahun — Kategori Murni</h3></div></div>
           <div class="table-scroll">
             <table class="data-table">
-              <thead><tr><th>Tahun</th><th>Total Pagu</th><th>Total Kontrak</th><th>Total Tertagih</th><th>Total Terbayar</th><th>Sisa</th><th>%</th></tr></thead>
+              <thead><tr><th class="heading-number">Tahun</th><th class="heading-number">Total Pagu</th><th class="heading-number">Total Kontrak</th><th class="heading-number">Total Tertagih</th><th class="heading-number">Total Terbayar</th><th class="heading-number">Sisa</th><th class="heading-number">%</th></tr></thead>
               <tbody id="rekapTahunMurniTableBody"></tbody>
-            </table>
-          </div>
-        </div>
-
-        <div class="panel">
-          <div class="panel-header">
-            <div>
-              <h3>Detail PRK/POS — Kategori Murni</h3>
-              <div class="panel-sub" id="detailTableSubMurni">Menampilkan seluruh baris data (semua tahun)</div>
-            </div>
-          </div>
-          <div class="table-scroll">
-            <table class="data-table">
-              <thead><tr><th>No</th><th>Unit</th><th>PRK/POS</th><th>Uraian PRK/POS</th><th>Tahun</th><th>Pagu</th><th>Terbayar</th><th>Status</th></tr></thead>
-              <tbody id="detailTableMurniTableBody"></tbody>
             </table>
           </div>
         </div>
@@ -604,7 +624,7 @@
             <div class="summary-card-sub">Realisasi terkontrak terhadap pagu</div>
           </div>
           <div class="summary-card card-info">
-            <div class="summary-card-label">Total Tertagih</div>
+            <div class="summary-card-label">Progres Pengadaan</div>
             <div class="summary-card-value" id="statTertagihLanjutan">Rp 0</div>
           </div>
           <div class="summary-card card-realisasi">
@@ -623,12 +643,27 @@
           </div>
         </div>
 
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <h3>Detail PRK/POS — Kategori Lanjutan</h3>
+              <div class="panel-sub" id="detailTableSubLanjutan">Menampilkan seluruh baris data (semua tahun)</div>
+            </div>
+          </div>
+          <div class="table-scroll">
+            <table class="data-table prk-table-compact">
+              <thead><tr><th class="heading-number">No</th><th>PRK/POS</th><th>Uraian PRK/POS</th><th class="heading-number">Pagu</th><th class="heading-number">Terkontrak</th><th class="heading-number">Terbayar</th><th class="heading-number">Sisa Pagu</th></tr></thead>
+              <tbody id="detailTableLanjutanTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
         <div class="dashboard-grid-2">
           <div class="panel">
             <div class="panel-header">
               <div>
-                <h3>Progres Penyerapan Terbayar per Tahun</h3>
-                <div class="panel-sub">Persentase terbayar terhadap pagu, dibandingkan antar tahun</div>
+                <h3>Pagu vs Terkontrak per PRK/POS</h3>
+                <div class="panel-sub">Perbandingan pagu dan AI terkontrak untuk setiap PRK/POS kategori Lanjutan</div>
               </div>
             </div>
             <div class="chart-canvas-wrap" style="height:300px;" id="wrapChartProgresTahunLanjutan">
@@ -639,8 +674,8 @@
           <div class="panel">
             <div class="panel-header">
               <div>
-                <h3>Kontrak vs Tertagih vs Terbayar</h3>
-                <div class="panel-sub">Perbandingan 3 metrik pada tahun terpilih</div>
+                <h3>Pagu vs Terbayar per PRK/POS</h3>
+                <div class="panel-sub">Perbandingan pagu dan realisasi terbayar untuk setiap PRK/POS kategori Lanjutan</div>
               </div>
             </div>
             <div class="chart-canvas-wrap" style="height:300px;" id="wrapChartBandingLanjutan">
@@ -653,23 +688,8 @@
           <div class="panel-header"><div><h3>Rekap per Tahun — Kategori Lanjutan</h3></div></div>
           <div class="table-scroll">
             <table class="data-table">
-              <thead><tr><th>Tahun</th><th>Total Pagu</th><th>Total Kontrak</th><th>Total Tertagih</th><th>Total Terbayar</th><th>Sisa</th><th>%</th></tr></thead>
+              <thead><tr><th class="heading-number">Tahun</th><th class="heading-number">Total Pagu</th><th class="heading-number">Total Kontrak</th><th class="heading-number">Total Tertagih</th><th class="heading-number">Total Terbayar</th><th class="heading-number">Sisa</th><th class="heading-number">%</th></tr></thead>
               <tbody id="rekapTahunLanjutanTableBody"></tbody>
-            </table>
-          </div>
-        </div>
-
-        <div class="panel">
-          <div class="panel-header">
-            <div>
-              <h3>Detail PRK/POS — Kategori Lanjutan</h3>
-              <div class="panel-sub" id="detailTableSubLanjutan">Menampilkan seluruh baris data (semua tahun)</div>
-            </div>
-          </div>
-          <div class="table-scroll">
-            <table class="data-table">
-              <thead><tr><th>No</th><th>Unit</th><th>PRK/POS</th><th>Uraian PRK/POS</th><th>Tahun</th><th>Pagu</th><th>Terbayar</th><th>Status</th></tr></thead>
-              <tbody id="detailTableLanjutanTableBody"></tbody>
             </table>
           </div>
         </div>
@@ -697,7 +717,7 @@
             <div class="summary-card-value" id="statKontrakArsip">Rp 0</div>
           </div>
           <div class="summary-card card-info">
-            <div class="summary-card-label">Total Tertagih</div>
+            <div class="summary-card-label">Progres Pengadaan</div>
             <div class="summary-card-value" id="statTertagihArsip">Rp 0</div>
           </div>
           <div class="summary-card card-realisasi">
@@ -768,7 +788,7 @@
           <div class="panel-header"><div><h3>Rekap per Tahun — Arsip</h3></div></div>
           <div class="table-scroll">
             <table class="data-table">
-              <thead><tr><th>Tahun</th><th>Total Pagu</th><th>Total Kontrak</th><th>Total Tertagih</th><th>Total Terbayar</th><th>Sisa</th><th>%</th></tr></thead>
+              <thead><tr><th class="heading-number">Tahun</th><th class="heading-number">Total Pagu</th><th class="heading-number">Total Kontrak</th><th class="heading-number">Total Tertagih</th><th class="heading-number">Total Terbayar</th><th class="heading-number">Sisa</th><th class="heading-number">%</th></tr></thead>
               <tbody id="rekapTahunArsipTableBody"></tbody>
             </table>
           </div>
@@ -929,7 +949,7 @@
           <div class="panel-header"><div><h3>Tabel Rekap Program</h3></div></div>
           <div class="table-scroll">
             <table class="data-table">
-              <thead><tr><th>Program</th><th>Total Pagu</th><th>Total Kontrak</th><th>Total Tertagih</th><th>Total Terbayar</th><th>Sisa</th><th>%</th></tr></thead>
+              <thead><tr><th>Program</th><th class="heading-number">Total Pagu</th><th class="heading-number">Total Kontrak</th><th class="heading-number">Total Tertagih</th><th class="heading-number">Total Terbayar</th><th class="heading-number">Sisa</th><th class="heading-number">%</th></tr></thead>
               <tbody id="rekapProgramTableBody"></tbody>
             </table>
           </div>
@@ -944,7 +964,7 @@
           </div>
           <div class="table-scroll">
             <table class="data-table">
-              <thead><tr><th>Tahun</th><th>Total Pagu</th><th>Total Kontrak</th><th>Total Tertagih</th><th>Total Terbayar</th><th>Sisa</th><th>%</th></tr></thead>
+              <thead><tr><th class="heading-number">Tahun</th><th class="heading-number">Total Pagu</th><th class="heading-number">Total Kontrak</th><th class="heading-number">Total Tertagih</th><th class="heading-number">Total Terbayar</th><th class="heading-number">Sisa</th><th class="heading-number">%</th></tr></thead>
               <tbody id="rekapProgramPerTahunTableBody"></tbody>
             </table>
           </div>
@@ -957,6 +977,12 @@
           <div>
             <h2>Grafik Anggaran</h2>
             <p>Visualisasi realisasi anggaran berdasarkan waktu, unit, dan status.</p>
+            <div class="panel-sub" id="grafikCakupanLabel">Cakupan data: seluruh tahun yang berhasil dimuat</div>
+          </div>
+          <div class="page-actions">
+            <select class="filter-select" id="filterTahunGrafik">
+              <option value="">Semua Tahun</option>
+            </select>
           </div>
         </div>
 
@@ -964,7 +990,7 @@
           <div class="panel-header">
             <div>
               <h3>Pagu vs Kontrak vs Tertagih vs Terbayar per Program</h3>
-              <div class="panel-sub">Ringkasan penyerapan per program (seluruh tahun)</div>
+              <div class="panel-sub">Ringkasan penyerapan per program, mengikuti filter tahun</div>
             </div>
           </div>
           <div class="chart-canvas-wrap" style="height:340px;" id="wrapChartProgramBandingFull">
@@ -977,7 +1003,7 @@
             <div class="panel-header">
               <div>
                 <h3>Proporsi Pagu per Program</h3>
-                <div class="panel-sub">Distribusi pagu anggaran tiap program</div>
+                <div class="panel-sub">Distribusi pagu anggaran tiap program, mengikuti filter tahun</div>
               </div>
             </div>
             <div class="chart-canvas-wrap" style="height:320px;" id="wrapChartProgramProporsiFull">
@@ -989,7 +1015,7 @@
             <div class="panel-header">
               <div>
                 <h3>Progress Penyerapan per Program</h3>
-                <div class="panel-sub">% AI Terkontrak, % Tertagih, % Terbayar per program</div>
+                <div class="panel-sub">% AI Terkontrak, % Tertagih, % Terbayar per program, mengikuti filter tahun</div>
               </div>
             </div>
             <div class="chart-canvas-wrap" style="height:320px;" id="wrapChartProgramProgressFull">
@@ -1003,7 +1029,7 @@
             <div class="panel-header">
               <div>
                 <h3>Status Anggaran</h3>
-                <div class="panel-sub">Distribusi nilai Terbayar, Terkontrak belum terbayar, dan Sisa Pagu belum terkontrak</div>
+                <div class="panel-sub">Distribusi nilai Terbayar, Terkontrak belum terbayar, dan Sisa Pagu belum terkontrak, mengikuti filter tahun</div>
               </div>
             </div>
             <div class="chart-canvas-wrap" style="height:320px;" id="wrapChartStatusFull">
@@ -1016,7 +1042,7 @@
           <div class="panel-header">
             <div>
               <h3>Progress Anggaran per Unit</h3>
-              <div class="panel-sub">Persentase realisasi terhadap pagu tiap unit</div>
+              <div class="panel-sub">Persentase realisasi terhadap pagu tiap unit, mengikuti filter tahun</div>
             </div>
           </div>
           <div class="unit-progress-list" id="unitProgressList"></div>
@@ -1190,7 +1216,7 @@
           </div>
           <div class="table-scroll">
             <table class="data-table kpi-table-compact">
-              <thead><tr><th>Indikator</th><th>Satuan</th><th>Target</th><th>Realisasi</th><th>Capaian</th><th>Status</th></tr></thead>
+              <thead><tr><th>Indikator</th><th>Satuan</th><th class="heading-number">Target</th><th class="heading-number">Realisasi</th><th class="heading-number">Capaian</th><th>Status</th></tr></thead>
               <tbody id="kpiBagianTableBody"></tbody>
             </table>
           </div>
@@ -1248,7 +1274,7 @@
         <div class="panel">
           <div class="table-scroll">
             <table class="data-table kpi-detail-table">
-              <thead><tr><th>No</th><th>Indikator Kinerja Kunci</th><th>Satuan</th><th>Target</th><th>Realisasi</th><th>%</th><th>Status</th><th>Bobot</th><th>Nilai</th><th>Loss Point</th></tr></thead>
+              <thead><tr><th class="heading-number">No</th><th>Indikator Kinerja Kunci</th><th>Satuan</th><th class="heading-number">Target</th><th class="heading-number">Realisasi</th><th class="heading-number">%</th><th>Status</th><th class="heading-number">Bobot</th><th class="heading-number">Nilai</th><th>Loss Point</th></tr></thead>
               <tbody id="kpiUlpDetailBody"></tbody>
             </table>
           </div>
@@ -1281,7 +1307,7 @@
           <div class="panel-header"><div><h3>Ranking Cepat</h3></div></div>
           <div class="table-scroll">
             <table class="data-table kpi-table-compact">
-              <thead><tr><th>#</th><th>ULP</th><th>Realisasi</th><th>Pencapaian</th><th>Status</th></tr></thead>
+              <thead><tr><th>#</th><th>ULP</th><th class="heading-number">Realisasi</th><th>Pencapaian</th><th>Status</th></tr></thead>
               <tbody id="kpiBandingBody"></tbody>
             </table>
           </div>
@@ -1331,7 +1357,7 @@
           </div>
           <div class="table-scroll">
             <table class="data-table kpi-table-compact">
-              <thead><tr><th>ULP</th><th>Periode</th><th>Jumlah Pelanggan</th><th>Daya Tersambung</th><th>Penjualan</th><th>Pendapatan</th></tr></thead>
+              <thead><tr><th>ULP</th><th>Periode</th><th class="heading-number">Jumlah Pelanggan</th><th>Daya Tersambung</th><th>Penjualan</th><th>Pendapatan</th></tr></thead>
               <tbody id="kpiPengusahaanComparisonBody"></tbody>
             </table>
           </div>
@@ -1376,10 +1402,10 @@
 <!-- Toast container -->
 <div class="toast-container" id="toastContainer"></div>
 <!-- Script: koneksi data (isi API_URL di sini) -->
-<script src="api.js"></script>
+<script src="api.js?v=20260903-1"></script>
 <!-- Script: logika utama aplikasi (dashboard SKKI) -->
-<script src="script.js"></script>
-<script src="kpi.js"></script>
+<script src="script.js?v=20260903-3"></script>
+<script src="kpi.js?v=20260903-3"></script>
   <script src="cursor-effect.js"></script>
 </body>
 </html>

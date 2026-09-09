@@ -14,7 +14,7 @@ const COLUMNS = [
   { key: "akiTerkontrak", label: "AKI Terkontrak (Rp.)", type: "currency" },
   { key: "tertagih", label: "Tertagih (Rp.)", type: "currency" },
   { key: "terbayar", label: "Terbayar (Rp.)", type: "currency" },
-  { key: "paguTersedia", label: "Pagu Tersedia (Rp.)", type: "currency" },
+  { key: "paguTersedia", label: "Sisa Pagu (Rp.)", type: "currency" },
   { key: "disburseTersedia", label: "Disburse Tersedia (Rp.)", type: "currency" },
   { key: "tahun", label: "Tahun", type: "text" },
   { key: "status", label: "Status", type: "status" }
@@ -85,6 +85,7 @@ const state = {
   isConnected: false,
   sort: { key: null, dir: null }, // dir: 'asc' | 'desc' | null
   filters: { search: "", tahun: "", bulan: "", unit: "", status: "" },
+  grafikTahun: "", // kosong = semua tahun yang berhasil dimuat dari URL sumber
   homeKategoriFilter: "", // "" = semua, "Murni", atau "Lanjutan" — khusus filter Dashboard Home
   homeProporsiGroupBy: { efisiensi: "program", pemasaran: "program", perbandingan: "program" }, // "program" (Uraian Anggaran) atau "prkpos" (PRK/POS)
   laporanFilters: { cakupan: "realtime", tahun: "", kategori: "", unit: "", status: "" },
@@ -252,6 +253,7 @@ function setupSidebarToggle() {
 async function loadData(showToast = false) {
   const hasCachedData = state.rawData.length > 0;
   state.isLoading = true;
+  setSkkiLoadingStatus(hasCachedData ? "refreshing" : "loading");
   // Saat refresh, pertahankan data valid terakhir di layar. Skeleton hanya
   // digunakan pada pemuatan pertama ketika belum ada snapshot sama sekali.
   if (!hasCachedData) renderLoadingState();
@@ -269,6 +271,7 @@ async function loadData(showToast = false) {
     populateFilterOptions();
     applyFilters();          // otomatis merender tabel & pagination
     renderDashboardHome();
+    setSkkiLoadingStatus(state.rawData.length > 0 ? "ready" : "empty");
 
     // Render ulang halaman aktif jika sedang membuka salah satu halaman ini
     const activePage = document.querySelector(".nav-item.active");
@@ -302,7 +305,28 @@ async function loadData(showToast = false) {
     console.error("Gagal memuat data:", error);
     state.isLoading = false;
     setConnectionBadge("disconnected");
+    setSkkiLoadingStatus("error");
     showToastMsg("Terjadi kesalahan saat memuat data.", "error");
+  }
+}
+
+function setSkkiLoadingStatus(mode) {
+  const notice = document.getElementById("skkiLoadingNotice");
+  const text = document.getElementById("skkiLoadingText");
+  if (!notice || !text) return;
+
+  notice.classList.remove("is-error", "is-empty");
+  notice.hidden = false;
+  if (mode === "loading") text.textContent = "Memuat data…";
+  else if (mode === "refreshing") text.textContent = "Memuat data…";
+  else if (mode === "empty") {
+    notice.classList.add("is-empty");
+    text.textContent = "Data anggaran belum tersedia dari sumber.";
+  } else if (mode === "error") {
+    notice.classList.add("is-error");
+    text.textContent = "Data anggaran gagal dimuat. Silakan tekan Refresh untuk mencoba lagi.";
+  } else {
+    notice.hidden = true;
   }
 }
 
@@ -368,10 +392,9 @@ function renderLoadingState() {
 }
 
 function getSisaPagu(row) {
-  // Utamakan nilai Pagu Tersedia yang benar-benar dikirim Google Sheets.
-  // Fallback mengikuti rumus sheet: Pagu - AI Terkontrak - Usulan.
-  if (Object.prototype.hasOwnProperty.call(row, "paguTersedia")) return row.paguTersedia || 0;
-  return (row.pagu || 0) - (row.aiTerkontrak || 0) - (row.usulan || 0);
+  // Definisi Sisa Pagu pada seluruh dashboard:
+  // Pagu dikurangi AI Terkontrak (Usulan tidak mengurangi Sisa Pagu).
+  return (row.pagu || 0) - (row.aiTerkontrak || 0);
 }
 
 function computeSummary(data) {
@@ -393,6 +416,7 @@ function computeSummary(data) {
 function computeSummaryFull(data) {
   const totalPagu = data.reduce((sum, r) => sum + (r.pagu || 0), 0);
   const totalKontrak = data.reduce((sum, r) => sum + (r.aiTerkontrak || 0), 0);
+  const totalUsulan = data.reduce((sum, r) => sum + (r.usulan || 0), 0);
   const totalTertagih = data.reduce((sum, r) => sum + (r.tertagih || 0), 0);
   const totalTerbayar = data.reduce((sum, r) => sum + (r.terbayar || 0), 0);
   const totalSisa = data.reduce((sum, r) => sum + getSisaPagu(r), 0);
@@ -400,7 +424,7 @@ function computeSummaryFull(data) {
   const persenKontrak = totalPagu > 0 ? (totalKontrak / totalPagu) * 100 : 0;
   const persenSisa = totalPagu > 0 ? (totalSisa / totalPagu) * 100 : 0;
 
-  return { totalPagu, totalKontrak, totalTertagih, totalTerbayar, totalSisa, persenRealisasi, persenKontrak, persenSisa, jumlahData: data.length };
+  return { totalPagu, totalKontrak, totalUsulan, totalTertagih, totalTerbayar, totalSisa, persenRealisasi, persenKontrak, persenSisa, jumlahData: data.length };
 }
 
 function renderSummary(data) {
@@ -409,11 +433,10 @@ function renderSummary(data) {
   document.getElementById("statTotalPagu").textContent = formatRupiah(summary.totalPagu);
   document.getElementById("statTotalKontrak").textContent = formatRupiah(summary.totalKontrak);
   document.getElementById("statPersenKontrak").textContent = formatPercent(summary.persenKontrak);
-  document.getElementById("statTotalTertagih").textContent = formatRupiah(summary.totalTertagih);
+  document.getElementById("statTotalTertagih").textContent = formatRupiah(summary.totalUsulan);
   document.getElementById("statTotalRealisasi").textContent = formatRupiah(summary.totalTerbayar);
   document.getElementById("statSisaAnggaran").textContent = formatRupiah(summary.totalSisa);
   document.getElementById("statPersenSisa").textContent = formatPercent(summary.persenSisa);
-  document.getElementById("statPersenRealisasi").textContent = formatPercent(summary.persenRealisasi);
   document.getElementById("statJumlahData").textContent = formatNumber(summary.jumlahData);
 
   // Progress ring
@@ -525,12 +548,16 @@ function renderTop10() {
 }
 
 function populateFilterOptions() {
-  fillSelect("filterTahun", "Semua Tahun", uniqueValues(state.rawData, "tahun"));
+  const availableYears = uniqueValues(state.rawData, "tahun");
+  if (state.grafikTahun && !availableYears.includes(state.grafikTahun)) state.grafikTahun = "";
+  fillSelect("filterTahun", "Semua Tahun", availableYears);
   fillSelect("filterBulan", "Semua Bulan", uniqueValues(state.rawData, "bulan", MONTH_ORDER));
   fillSelect("filterUnit", "Semua Unit", uniqueValues(state.rawData, "unit"));
   fillSelect("filterStatus", "Semua Status", uniqueValues(state.rawData, "status"));
 
-  fillSelect("filterTahunRekapProgram", "Semua Tahun", uniqueValues(state.rawData, "tahun"));
+  fillSelect("filterTahunRekapProgram", "Semua Tahun", availableYears);
+  fillSelect("filterTahunGrafik", "Semua Tahun", availableYears);
+  document.getElementById("filterTahunGrafik").value = state.grafikTahun;
   fillSelect("filterTahunMurni", "Semua Tahun", uniqueValues(filterByKategori(state.rawData, "Murni"), "tahun"));
   fillSelect("filterTahunLanjutan", "Semua Tahun", uniqueValues(filterByKategori(state.rawData, "Lanjutan"), "tahun"));
   fillSelect("filterTahunArsip", `Semua Tahun (${getArsipLabel()})`, uniqueValues(filterByTahunArsip(state.rawData), "tahun"));
@@ -713,8 +740,8 @@ function applySort() {
   if (!key || !dir) return;
 
   state.filteredData.sort((a, b) => {
-    let va = a[key];
-    let vb = b[key];
+    let va = key === "paguTersedia" ? getSisaPagu(a) : a[key];
+    let vb = key === "paguTersedia" ? getSisaPagu(b) : b[key];
     if (typeof va === "string") va = va.toLowerCase();
     if (typeof vb === "string") vb = vb.toLowerCase();
     if (va === undefined || va === null) va = "";
@@ -731,7 +758,7 @@ function renderTableHeader() {
   headRow.innerHTML = COLUMNS.map((col) => {
     let sortClass = "";
     if (state.sort.key === col.key) sortClass = state.sort.dir === "asc" ? "sorted-asc" : state.sort.dir === "desc" ? "sorted-desc" : "";
-    return `<th data-key="${col.key}" class="${sortClass}">
+    return `<th data-key="${col.key}" class="${sortClass} ${["number", "currency"].includes(col.type) || col.key === "tahun" ? "heading-number" : "heading-text"}">
       <span class="th-inner">${col.label}
         <svg class="sort-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M6 9l6 6 6-6"/></svg>
       </span>
@@ -761,8 +788,8 @@ function renderTable() {
     </td></tr>`;
   } else {
     tbody.innerHTML = pageRows
-      .map((row) => {
-        return `<tr data-no="${row.no}" class="row-clickable">${COLUMNS.map((col) => renderCell(row, col)).join("")}</tr>`;
+      .map((row, index) => {
+        return `<tr data-no="${row.no}" class="row-clickable">${COLUMNS.map((col) => renderCell(col.key === "no" ? { ...row, no: start + index + 1 } : row, col)).join("")}</tr>`;
       })
       .join("");
   }
@@ -771,7 +798,9 @@ function renderTable() {
 }
 
 function renderCell(row, col) {
-  const value = row[col.key];
+  // Kolom sumber tetap bernama paguTersedia, tetapi setiap tampilan Sisa Pagu
+  // harus menggunakan rumus dashboard yang sama: Pagu - AI Terkontrak.
+  const value = col.key === "paguTersedia" ? getSisaPagu(row) : row[col.key];
   if (col.type === "currency") return `<td class="cell-num">${formatRupiah(value)}</td>`;
   if (col.type === "number") return `<td class="cell-num cell-muted">${value ?? "-"}</td>`;
   if (col.type === "status") return `<td><span class="status-badge ${statusClass(value)}"><span class="dot"></span>${value || "-"}</span></td>`;
@@ -877,7 +906,7 @@ function openDetailModal(row) {
 
   const body = document.getElementById("detailModalBody");
   body.innerHTML = DETAIL_FIELDS.map((f) => {
-    const raw = row[f.key];
+    const raw = f.key === "paguTersedia" ? getSisaPagu(row) : row[f.key];
     const value = f.currency ? formatRupiah(raw) : (raw !== undefined && raw !== null && raw !== "" ? raw : "-");
     return `<div class="detail-row"><span class="detail-label">${f.label}</span><span class="detail-value">${value}</span></div>`;
   }).join("");
@@ -1079,8 +1108,27 @@ function renderCharts(scope) {
   // scope: "home" untuk mini chart di Dashboard Home (data berjalan, mengikuti
   // filter kategori Murni/Lanjutan yang aktif), "full" untuk halaman Grafik
   // (seluruh data, semua tahun, tidak terpengaruh filter Dashboard Home)
-  const data = scope === "home" ? getHomeData() : state.rawData;
+  const data = scope === "home"
+    ? getHomeData()
+    : (state.grafikTahun ? state.rawData.filter((r) => String(r.tahun) === state.grafikTahun) : state.rawData);
   const suffix = scope === "home" ? "Home" : "Full";
+
+  if (scope === "full") {
+    const availableYears = uniqueValues(state.rawData, "tahun");
+    const yearSelect = document.getElementById("filterTahunGrafik");
+    if (yearSelect) {
+      const optionYears = Array.from(yearSelect.options).map((option) => option.value).filter(Boolean);
+      if (optionYears.join("|") !== availableYears.join("|")) {
+        fillSelect("filterTahunGrafik", "Semua Tahun", availableYears);
+      }
+      yearSelect.value = state.grafikTahun;
+    }
+    const years = uniqueValues(data, "tahun");
+    const label = document.getElementById("grafikCakupanLabel");
+    if (label) label.textContent = state.grafikTahun
+      ? `Cakupan data: tahun ${state.grafikTahun}`
+      : `Cakupan data: ${yearRangeLabel(years, "tidak tersedia")} (${formatNumber(data.length)} baris)`;
+  }
 
   renderStatusChart(data, `wrapChartStatus${suffix}`, `chartStatus${suffix}`);
 
@@ -1518,7 +1566,7 @@ function renderProgressAIPrkDetail(rows, meta) {
   wrap.innerHTML = `
     <div class="table-scroll">
       <table class="data-table">
-        <thead><tr><th>Bulan</th><th>Total (${meta.label})</th><th>Kumulatif</th></tr></thead>
+        <thead><tr><th>Bulan</th><th class="heading-number">Total (${meta.label})</th><th class="heading-number">Kumulatif</th></tr></thead>
         <tbody>${rowsHtml}</tbody>
       </table>
     </div>`;
@@ -1565,8 +1613,8 @@ function renderDetailKategoriTable(bodyId, rows) {
   const sorted = [...rows].sort((a, b) => (Number(a.no) || 0) - (Number(b.no) || 0));
   tbody.innerHTML = sorted
     .map(
-      (r) => `<tr>
-      <td>${r.no || "-"}</td>
+      (r, index) => `<tr>
+      <td>${index + 1}</td>
       <td>${r.unit || "-"}</td>
       <td>${r.prkPos || "-"}</td>
       <td>${r.uraianPrkPos || "-"}</td>
@@ -1574,6 +1622,31 @@ function renderDetailKategoriTable(bodyId, rows) {
       <td class="cell-num">${formatRupiah(r.pagu)}</td>
       <td class="cell-num">${formatRupiah(r.terbayar)}</td>
       <td>${r.status || "-"}</td>
+    </tr>`
+    )
+    .join("");
+}
+
+function renderDetailMurniTable(bodyId, rows) {
+  const tbody = document.getElementById(bodyId);
+  if (!tbody) return;
+  if (rows.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state empty-state-mini">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 4v16"/></svg>
+      <h4>Belum ada data</h4><p>Tidak ada baris data untuk tahun yang dipilih.</p></div></td></tr>`;
+    return;
+  }
+  const sorted = [...rows].sort((a, b) => (Number(a.no) || 0) - (Number(b.no) || 0));
+  tbody.innerHTML = sorted
+    .map(
+      (r, i) => `<tr>
+      <td>${i + 1}</td>
+      <td>${r.prkPos || "-"}</td>
+      <td>${r.uraianPrkPos || "-"}</td>
+      <td class="cell-num">${formatRupiah(r.pagu)}</td>
+      <td class="cell-num">${formatRupiah(r.aiTerkontrak)}</td>
+      <td class="cell-num">${formatRupiah(r.terbayar)}</td>
+      <td class="cell-num">${formatRupiah(getSisaPagu(r))}</td>
     </tr>`
     )
     .join("");
@@ -1613,7 +1686,7 @@ function renderRekapChart(canvasId, wrapId, rekap) {
       labels: rekap.map((r) => r.label),
       datasets: [
         { label: "Pagu", data: rekap.map((r) => r.pagu), backgroundColor: CHART_COLORS.info, borderRadius: 5, maxBarThickness: 28 },
-        { label: "Realisasi", data: rekap.map((r) => r.terbayar), backgroundColor: CHART_COLORS.primary, borderRadius: 5, maxBarThickness: 28 }
+        { label: "Terbayar", data: rekap.map((r) => r.terbayar), backgroundColor: CHART_COLORS.primary, borderRadius: 5, maxBarThickness: 28 }
       ]
     },
     options: chartBaseOptions({ y: { formatter: formatRupiahShort }, legend: true })
@@ -1630,6 +1703,9 @@ function renderRekapUnit() {
 }
 
 function renderRekapProgram() {
+  // Sinkronkan ulang opsi dari baris yang benar-benar berhasil dimuat.
+  // Ini memastikan endpoint historis (termasuk 2024) muncul setelah refresh.
+  fillSelect("filterTahunRekapProgram", "Semua Tahun", uniqueValues(state.rawData, "tahun"));
   const tahunSelect = document.getElementById("filterTahunRekapProgram");
   const selectedTahun = tahunSelect ? tahunSelect.value : "";
   const dataForChart = selectedTahun ? state.rawData.filter((r) => String(r.tahun) === selectedTahun) : state.rawData;
@@ -1663,6 +1739,15 @@ function setupRekapProgramYearFilter() {
   const select = document.getElementById("filterTahunRekapProgram");
   if (!select) return;
   select.addEventListener("change", renderRekapProgram);
+}
+
+function setupGrafikYearFilter() {
+  const select = document.getElementById("filterTahunGrafik");
+  if (!select) return;
+  select.addEventListener("change", () => {
+    state.grafikTahun = select.value;
+    renderCharts("full");
+  });
 }
 
 function aggregateProgramMetrics(data, keyFn) {
@@ -2063,6 +2148,25 @@ function renderChartBandingMetrik(dataTahun, canvasId, wrapId) {
   });
 }
 
+function renderChartPaguKontrakPerPrk(data, canvasId, wrapId) {
+  const agg = aggregateRekap(data, "prkPos");
+  if (agg.length === 0) return showChartEmpty(wrapId, canvasId);
+  hideChartEmpty(wrapId, canvasId);
+  destroyChart(canvasId);
+  const ctx = document.getElementById(canvasId).getContext("2d");
+  state.charts[canvasId] = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: agg.map((r) => r.label),
+      datasets: [
+        { label: "Pagu", data: agg.map((r) => r.pagu), backgroundColor: CHART_COLORS.info, borderRadius: 5, maxBarThickness: 28 },
+        { label: "AI Terkontrak", data: agg.map((r) => r.kontrak), backgroundColor: CHART_COLORS.primary, borderRadius: 5, maxBarThickness: 28 }
+      ]
+    },
+    options: chartBaseOptions({ y: { formatter: formatRupiahShort }, legend: true })
+  });
+}
+
 function renderKategoriDashboard(kategori) {
   const suffix = kategori; // "Murni" / "Lanjutan" — cocok dengan akhiran ID elemen di index.html
   const dataKategoriAll = filterByKategori(state.rawData, kategori);
@@ -2076,15 +2180,15 @@ function renderKategoriDashboard(kategori) {
   document.getElementById(`statPagu${suffix}`).textContent = formatRupiah(summary.totalPagu);
   document.getElementById(`statKontrak${suffix}`).textContent = formatRupiah(summary.totalKontrak);
   document.getElementById(`statPersenKontrak${suffix}`).textContent = formatPercent(summary.persenKontrak);
-  document.getElementById(`statTertagih${suffix}`).textContent = formatRupiah(summary.totalTertagih);
+  document.getElementById(`statTertagih${suffix}`).textContent = formatRupiah(summary.totalUsulan);
   document.getElementById(`statTerbayar${suffix}`).textContent = formatRupiah(summary.totalTerbayar);
   document.getElementById(`statSisa${suffix}`).textContent = formatRupiah(summary.totalSisa);
   document.getElementById(`statPersenSisa${suffix}`).textContent = formatPercent(summary.persenSisa);
   document.getElementById(`statPersen${suffix}`).textContent = formatPercent(summary.persenRealisasi);
 
-  // 3 grafik
-  renderChartProgresTahun(dataKategoriAll, `chartProgresTahun${suffix}`, `wrapChartProgresTahun${suffix}`);
-  renderChartBandingMetrik(dataTahun, `chartBanding${suffix}`, `wrapChartBanding${suffix}`);
+  renderChartPaguKontrakPerPrk(dataTahun, `chartProgresTahun${suffix}`, `wrapChartProgresTahun${suffix}`);
+  renderRekapChart(`chartBanding${suffix}`, `wrapChartBanding${suffix}`, aggregateRekap(dataTahun, "prkPos"));
+  renderDetailMurniTable(`detailTable${suffix}TableBody`, dataTahun);
 
   // Tabel rekap per tahun
   const rekapTahun = aggregateProgresPerTahun(dataKategoriAll);
@@ -2096,9 +2200,6 @@ function renderKategoriDashboard(kategori) {
     });
   });
 
-  // Tabel detail per baris (No, Unit, PRK/POS, dst.) — supaya jelas baris data
-  // mana saja yang membentuk angka rekap di atas untuk tahun yang dipilih.
-  renderDetailKategoriTable(`detailTable${suffix}TableBody`, dataTahun);
   const detailSub = document.getElementById(`detailTableSub${suffix}`);
   if (detailSub) {
     detailSub.textContent = selectedTahun
@@ -2126,7 +2227,7 @@ function renderArsipDashboard() {
   const summary = computeSummaryFull(dataTahun);
   document.getElementById("statPaguArsip").textContent = formatRupiah(summary.totalPagu);
   document.getElementById("statKontrakArsip").textContent = formatRupiah(summary.totalKontrak);
-  document.getElementById("statTertagihArsip").textContent = formatRupiah(summary.totalTertagih);
+  document.getElementById("statTertagihArsip").textContent = formatRupiah(summary.totalUsulan);
   document.getElementById("statTerbayarArsip").textContent = formatRupiah(summary.totalTerbayar);
   document.getElementById("statSisaArsip").textContent = formatRupiah(summary.totalSisa);
   document.getElementById("statPersenArsip").textContent = formatPercent(summary.persenRealisasi);
@@ -2225,7 +2326,7 @@ function renderLaporan() {
   reportGrid.innerHTML = `
     <div class="summary-card card-pagu"><div class="summary-card-label">Total Pagu</div><div class="summary-card-value">${formatRupiah(summary.totalPagu)}</div></div>
     <div class="summary-card card-jumlah"><div class="summary-card-label">Total AI Terkontrak</div><div class="summary-card-value">${formatRupiah(summary.totalKontrak)}</div></div>
-    <div class="summary-card card-info"><div class="summary-card-label">Total Tertagih</div><div class="summary-card-value">${formatRupiah(summary.totalTertagih)}</div></div>
+    <div class="summary-card card-info"><div class="summary-card-label">Progres Pengadaan</div><div class="summary-card-value">${formatRupiah(summary.totalUsulan)}</div></div>
     <div class="summary-card card-realisasi"><div class="summary-card-label">Total Realisasi</div><div class="summary-card-value">${formatRupiah(summary.totalTerbayar)}</div></div>
     <div class="summary-card card-sisa"><div class="summary-card-label">Sisa Pagu</div><div class="summary-card-value">${formatRupiah(summary.totalSisa)}</div></div>
     <div class="summary-card card-persen"><div class="summary-card-label">Persentase Realisasi</div><div class="summary-card-value">${formatPercent(summary.persenRealisasi)}</div></div>
@@ -2233,7 +2334,7 @@ function renderLaporan() {
 
   const headEl = document.getElementById("reportTableHead");
   const bodyEl = document.getElementById("reportTableBody");
-  headEl.innerHTML = COLUMNS.map((c) => `<th>${c.label}</th>`).join("");
+  headEl.innerHTML = COLUMNS.map((c) => `<th class="${["number", "currency"].includes(c.type) || c.key === "tahun" ? "heading-number" : "heading-text"}">${c.label}</th>`).join("");
 
   if (data.length === 0) {
     bodyEl.innerHTML = `<tr><td colspan="${COLUMNS.length}">
@@ -2244,7 +2345,7 @@ function renderLaporan() {
       </div>
     </td></tr>`;
   } else {
-    bodyEl.innerHTML = data.map((row) => `<tr>${COLUMNS.map((col) => renderCell(row, col)).join("")}</tr>`).join("");
+    bodyEl.innerHTML = data.map((row, index) => `<tr>${COLUMNS.map((col) => renderCell(col.key === "no" ? { ...row, no: index + 1 } : row, col)).join("")}</tr>`).join("");
   }
 }
 
@@ -2331,6 +2432,7 @@ function init() {
   setupProgressTabs();
   setupProgressAIPrkFilter();
   setupRekapProgramYearFilter();
+  setupGrafikYearFilter();
   setupKategoriDashboardFilters();
   setupArsipFilter();
   setupLaporanFilters();

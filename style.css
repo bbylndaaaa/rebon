@@ -838,6 +838,8 @@ select:focus-visible {
 .summary-card.card-jumlah::before { background: var(--color-primary-darker); }
 .summary-card.card-info::before { background: var(--color-info); }
 
+
+
 .summary-card-icon {
   width: 38px;
   height: 38px;
@@ -1093,6 +1095,8 @@ select:focus-visible {
 .summary-grid-home .summary-card::before {
   height: 2px;
 }
+
+
 
 .summary-grid-home .summary-card-icon {
   position: absolute;
@@ -1528,6 +1532,64 @@ table.data-table.kpi-table-compact { min-width: 0; width: 100%; }
 /* --------------------------------------------------------------------------
    12. LOADING STATE (Skeleton + Spinner)
    -------------------------------------------------------------------------- */
+.skki-loading-notice {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 100vh;
+  min-height: 100dvh;
+  margin: 0;
+  padding: 40px 20px;
+  border: 0;
+  border-radius: 0;
+  background: rgba(255, 255, 255, .9);
+  backdrop-filter: blur(2px);
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: .02em;
+  text-align: center;
+}
+
+.skki-loading-notice[hidden] { display: none; }
+
+.skki-loading-notice.is-empty {
+  background: rgba(255, 255, 255, .94);
+  color: #fbbf24;
+}
+
+.skki-loading-notice.is-error {
+  background: rgba(255, 255, 255, .94);
+  color: #fca5a5;
+}
+
+.skki-loading-spinner {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  border: 4px solid rgba(11, 77, 162, .16);
+  border-top-color: var(--color-primary);
+  border-right-color: rgba(11, 77, 162, .48);
+  border-radius: 50%;
+  animation: spin .85s linear infinite;
+}
+
+.skki-loading-notice.is-empty .skki-loading-spinner,
+.skki-loading-notice.is-error .skki-loading-spinner {
+  animation: none;
+  border: 0;
+  width: 18px;
+  height: 18px;
+}
+
+.skki-loading-notice.is-empty .skki-loading-spinner::before { content: "!"; }
+.skki-loading-notice.is-error .skki-loading-spinner::before { content: "×"; }
+
 .skeleton {
   position: relative;
   overflow: hidden;
@@ -2088,20 +2150,23 @@ table.data-table.kpi-table-compact { min-width: 0; width: 100%; }
 /* --- Overlay loading (dipasang otomatis oleh kpi.js ke halaman KPI aktif
    selagi data dari Google Sheets belum selesai diambil) --- */
 .kpi-loading-overlay {
-  position: absolute;
+  position: fixed;
   inset: 0;
-  background: rgba(242, 244, 248, .92);
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: rgba(255, 255, 255, .9);
+  backdrop-filter: blur(2px);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 14px;
-  z-index: 40;
+  gap: 12px;
+  z-index: 10000;
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
   transition: opacity .15s ease;
-  border-radius: var(--radius-md);
+  border-radius: 0;
 }
 .kpi-loading-overlay.show {
   opacity: 1;
@@ -2109,19 +2174,21 @@ table.data-table.kpi-table-compact { min-width: 0; width: 100%; }
   pointer-events: auto;
 }
 .kpi-spinner {
-  width: 42px;
-  height: 42px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
-  border: 4px solid var(--color-border);
+  border: 4px solid rgba(11, 77, 162, .16);
   border-top-color: var(--color-primary);
-  animation: kpi-spin .8s linear infinite;
+  border-right-color: rgba(11, 77, 162, .48);
+  animation: kpi-spin .85s linear infinite;
 }
 @keyframes kpi-spin {
   to { transform: rotate(360deg); }
 }
 .kpi-loading-text {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
+  letter-spacing: .02em;
   color: var(--color-text-secondary);
 }
 
@@ -2588,3 +2655,100 @@ table.data-table.kpi-table-compact { min-width: 0; width: 100%; }
   .chart-canvas-wrap { height: 210px !important; }
   .kpi-map-canvas { min-height: 190px; }
 }
+/* Compact category details keep all seven columns within the panel. */
+table.data-table.prk-table-compact { width: 100%; min-width: 0; table-layout: fixed; font-size: clamp(9px, .8vw, 11px); }
+.prk-table-compact thead th, .prk-table-compact tbody td { padding: 8px 5px; white-space: normal; overflow-wrap: anywhere; }
+.prk-table-compact th:nth-child(1) { width: 4%; }
+.prk-table-compact th:nth-child(2) { width: 14%; }
+.prk-table-compact th:nth-child(3) { width: 22%; }
+.prk-table-compact th:nth-child(n+4) { width: 15%; }
+/* Light sidebar with comfortably sized navigation and a full lower illustration. */
+.sidebar { background: linear-gradient(180deg, #e9f6ff 0%, #d7edfa 100%); color: #315b78; }
+.sidebar .portal-back-btn { padding: 12px 16px; font-size: 13px; flex-shrink: 0; color: #315b78; background: rgba(255,255,255,.5); border-color: #bddced; }
+.sidebar .portal-back-btn:hover { background: #cce8f8; }
+.sidebar-nav { flex: 0 1 auto; min-height: 0; padding: 8px 10px; }
+.sidebar .sidebar-section-label { color: #62839b; font-size: 10px; padding: 8px 10px 6px; }
+.sidebar .nav-item { color: #315b78; font-size: 13px; padding: 9px 11px; gap: 10px; margin-bottom: 2px; }
+.sidebar .nav-item:hover { background: #c8e6f7; color: #204f70; }
+.sidebar .nav-item.active { color: #fff; background: #229de5; box-shadow: 0 3px 10px rgba(34,157,229,.16); }
+.sidebar .nav-item svg { width: 18px; height: 18px; }
+.sidebar .nav-item-sub { font-size: 12px; padding: 7px 10px 7px 35px; }
+.sidebar .nav-submenu { margin-top: 1px; margin-bottom: 2px; border-color: #b3d7ec; }
+.sidebar .nav-submenu-toggle { color: #517b95; }
+.sidebar .nav-submenu-toggle:hover { background: #c8e6f7; color: #204f70; }
+.sidebar-footer { flex-shrink: 0; padding: 6px 18px; border-top: 0; }
+.sidebar-footer:has(.sidebar-live-status[hidden]) { display: none; }
+.sidebar .sidebar-live-status { border-color: #b3d7ec; padding-bottom: 0; margin-bottom: 0; }
+.sidebar .sidebar-live-label, .sidebar .sidebar-live-status .kpi-conn-text { color: #456b83; }
+.sidebar .sidebar-live-status.kpi-live .kpi-conn-text { color: #247157; }
+.sidebar .sidebar-live-status.kpi-demo .kpi-conn-text { color: #89600e; }
+.sidebar-landscape { position: relative; flex: 1 1 0; min-height: 0; width: 100%; overflow: hidden; pointer-events: none; }
+.sidebar-landscape svg { display: block; width: 100%; height: 100%; }
+.sidebar-landscape .sidebar-copyright { position: absolute; bottom: 8px; left: 0; right: 0; text-align: center; font-size: 10px; font-weight: 600; color: #244d65; text-shadow: 0 1px 3px #e9f6ff; }
+.app-shell.sidebar-collapsed .sidebar-landscape { display: none; }
+@media (max-height: 620px) {
+  .sidebar .nav-item { padding-top: 6px; padding-bottom: 6px; }
+  .sidebar .portal-back-btn { padding-top: 8px; padding-bottom: 8px; }
+}
+@media print { .sidebar-landscape { display: none; } }
+
+/* Slightly denser content with shrinking grid tracks to contain wide tables. */
+:root { --sidebar-width: 240px; --navbar-height: 58px; }
+.main-wrapper { font-size: 12.5px; }
+.content, .page, .panel, .summary-card, .dashboard-grid, .dashboard-grid-2,
+.monthly-progress-stack, .chart-canvas-wrap { min-width: 0; max-width: 100%; }
+.table-scroll { min-width: 0; max-width: 100%; }
+.summary-card-value { overflow-wrap: anywhere; }
+.summary-grid-home .summary-card-value { white-space: normal; }
+.budget-overview-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: stretch; }
+.budget-overview-grid > .panel { margin-bottom: 0; }
+.budget-overview-grid .progress-gauge-wrap { flex-wrap: wrap; gap: 14px; }
+.budget-overview-grid .progress-legend { flex: 1 1 170px; min-width: 0; }
+.budget-overview-grid .progress-legend-row { gap: 8px; flex-wrap: wrap; }
+#wrapChartStatusHome { height: 205px; }
+@media (min-width: 601px) {
+  .content { padding: 14px; }
+  .navbar { padding-inline: 14px; }
+  .page-header { padding: 13px; margin-bottom: 12px; }
+  .page-header h2 { font-size: 18px; }
+  .panel { padding: 13px; margin-bottom: 12px; }
+  .panel-header { margin-bottom: 10px; }
+  .panel-header h3 { font-size: 13px; }
+  .panel-header .panel-sub { font-size: 11px; }
+  .summary-grid { gap: 10px; margin-bottom: 14px; }
+  .summary-grid-home { grid-template-columns: repeat(auto-fit, minmax(min(155px, 100%), 1fr)); }
+  .summary-grid .summary-card { padding: 10px; }
+  .summary-grid-home .summary-card { min-height: 88px; }
+  .summary-grid.cols-6 .summary-card-value { font-size: 14px; white-space: normal; }
+  .dashboard-grid { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 12px; margin-bottom: 12px; }
+  .dashboard-grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .budget-overview-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .budget-overview-grid > .panel { margin-bottom: 0; }
+  .data-table thead th, .data-table tbody td { padding: 8px 9px; }
+  .prk-table-compact thead th, .prk-table-compact tbody td { padding: 7px 4px; }
+}
+@media (max-width: 760px) { .budget-overview-grid { grid-template-columns: minmax(0, 1fr); } }
+
+/* Compact cards across Home, category dashboards, archive, and reports. */
+.summary-grid .summary-card-label { font-size: 11px; margin-bottom: 4px; }
+.summary-grid .summary-card-value { font-size: 18px; min-height: 22px; line-height: 1.3; }
+.summary-grid.cols-6 .summary-card-value { font-size: 14px; white-space: normal; }
+.summary-grid-home .summary-card-value { font-size: clamp(12px, 1vw, 15px); }
+.summary-grid .summary-card-sub { font-size: 10px; margin-top: 4px; }
+.summary-grid .summary-card-metric { min-height: 25px; min-width: 54px; padding: 4px 8px; font-size: 10.5px; margin-top: 5px; }
+.summary-grid .summary-card-icon { width: 30px; height: 30px; margin-bottom: 8px; }
+.summary-grid .summary-card-icon svg { width: 16px; height: 16px; }
+.summary-grid-home .summary-card-icon { top: 10px; right: 10px; width: 25px; height: 25px; margin: 0; }
+.summary-grid-home .summary-card-icon svg { width: 13px; height: 13px; }
+.summary-grid-home .summary-card-label { min-height: 26px; padding-right: 28px; }
+@media (max-width: 600px) {
+  .summary-grid .summary-card { padding: 11px; }
+  .summary-grid-home .summary-card { min-height: 88px; }
+  .summary-grid-home .summary-card-value { font-size: 14px; }
+}
+
+/* Align headings by column type without changing body cell alignment. */
+.data-table thead th { text-align: left; vertical-align: middle; }
+.data-table thead th .th-inner { justify-content: flex-start; }
+.data-table thead th.heading-number { text-align: right; }
+.data-table thead th.heading-number .th-inner { justify-content: flex-end; }
