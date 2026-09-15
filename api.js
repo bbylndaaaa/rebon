@@ -1,4 +1,4 @@
-const API_URL = "https://script.google.com/macros/s/AKfycbx6Rq5IJEWOS1EQ05710xeG6ye2Kj7r2_DZ2rbAsqjH2B8BOP0yMXwA_Vgq17Fpl_Vi/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbwBdU0Btc5DAnL06K1vLoPsoszrPSe_5teGpm9F3tnBhKw-sohbAeXwKFVvHUKG-pMS/exec";
 
 const HIST_API_URLS = {
   "2022": "https://script.google.com/macros/s/AKfycbz5jJUHprjhNkEfMWRxLZI3OXFbND8NchoNGQkJpCBipToaRA1oAKGxJmZyWB4preZo/exec",
@@ -484,7 +484,7 @@ async function fetchMainMonitoring() {
   return { monitoring, meta };
 }
 
-async function getData(onMainReady) {
+async function getData() {
   const empty = { ok: false, meta: null, monitoring: [], progressAI: { terkontrak: [], tertagih: [], terbayar: [] }, monthlyProgress: [] };
 
   if (!API_URL) {
@@ -493,11 +493,10 @@ async function getData(onMainReady) {
   }
 
   try {
-    // Tampilkan tabel utama sebelum menunggu arsip, progres, dan bulanan.
-    // Request tambahan baru dimulai setelah sumber utama berhasil dibaca.
-    const main = await fetchMainMonitoring();
-    if (onMainReady) onMainReady({ ok: true, monitoring: main.monitoring, meta: main.meta });
-    const [historicalRows, progressAI, monthlyProgress] = await Promise.all([
+    // Data utama, arsip tahun lama, dan Progress AI diambil BERSAMAAN (bukan berurutan)
+    // supaya total waktu loading = request paling lambat, bukan jumlah semuanya.
+    const [main, historicalRows, progressAI, monthlyProgress] = await Promise.all([
+      fetchMainMonitoring(),
       getHistoricalData(),
       getProgressAI(),
       getMonthlyProgress()

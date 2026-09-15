@@ -195,6 +195,9 @@
       </div>
 
       <div class="navbar-right">
+        <button class="navbar-refresh" id="logoutBtn" type="button" title="Keluar dari dashboard">
+          <span>Logout</span>
+        </button>
         <span class="connection-badge" id="connectionBadge">
           <span class="dot"></span>
           <span id="connectionText">Belum Terhubung</span>
@@ -230,11 +233,6 @@
               <option value="Lanjutan">Hanya Lanjutan</option>
             </select>
           </div>
-        </div>
-
-        <div class="skki-loading-notice" id="skkiLoadingNotice" role="status" aria-live="polite">
-          <span class="skki-loading-spinner" aria-hidden="true"></span>
-          <span id="skkiLoadingText">Memuat data…</span>
         </div>
 
         <!-- Card Summary -->
@@ -1399,9 +1397,9 @@
 <!-- Toast container -->
 <div class="toast-container" id="toastContainer"></div>
 <!-- Script: koneksi data (isi API_URL di sini) -->
-<script src="api.js?v=20260915-1"></script>
+<script src="api.js?v=20260903-1"></script>
 <!-- Script: logika utama aplikasi (dashboard SKKI) -->
-<script src="script.js?v=20260915-1"></script>
+<script src="script.js?v=20260903-3"></script>
 <script src="kpi.js?v=20260903-3"></script>
   <script src="cursor-effect.js"></script>
 </body>
