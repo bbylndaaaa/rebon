@@ -1,10 +1,3 @@
-/* ==========================================================================
-   KPI MONITORING UP3 CIREBON — MODULE
-   File terpisah dari script.js (punya dashboard SKKI) supaya tidak
-   bertabrakan. Terhubung ke Google Apps Script Web App sebagai database
-   (lihat apps-script/Code.gs). Dashboard ini hanya memakai data Google Sheets
-   melalui Web App; data demo/snapshot tidak digunakan sebagai fallback.
-   ========================================================================== */
 
 const KPI_CONFIG = {
   API_URL: "https://script.google.com/macros/s/AKfycbwllGxzY1P17wGTYIMqmDCSoEGhywfMw2MI9jnI6gKtt48GQK96sdbPAraidb1EskOo/exec",
@@ -23,7 +16,6 @@ const KPI = (function () {
   const inFlight = new Map();
   const requestControllers = new Map();
 
-  /* --------------------------- overlay loading --------------------------- */
   function ensureLoadingOverlay(container) {
     let el = container.querySelector(":scope > .kpi-loading-overlay");
     if (!el) {
