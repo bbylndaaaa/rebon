@@ -7,7 +7,7 @@
    ========================================================================== */
 
 const KPI_CONFIG = {
-  API_URL: "https://script.google.com/macros/s/AKfycbyF-avTwks-UU-udRxWXRWqtIjwQ2qvhbgpvIaGxjT9stb-BwzXytsUL4y1MHS3MhtHKQ/exec",
+  API_URL: "https://script.google.com/macros/s/AKfycbwllGxzY1P17wGTYIMqmDCSoEGhywfMw2MI9jnI6gKtt48GQK96sdbPAraidb1EskOo/exec",
   USE_LIVE: true,
   CACHE_TTL_MS: 10 * 60 * 1000
 };
