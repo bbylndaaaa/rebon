@@ -250,7 +250,10 @@ function setupSidebarToggle() {
   });
 }
 
+let skkiLoadPending = false;
 async function loadData(showToast = false) {
+  if (skkiLoadPending) return;
+  skkiLoadPending = true;
   const hasCachedData = state.rawData.length > 0;
   state.isLoading = true;
   setSkkiLoadingStatus(hasCachedData ? "refreshing" : "loading");
@@ -260,7 +263,19 @@ async function loadData(showToast = false) {
   setConnectionBadge("loading");
 
   try {
-    const data = await getData(); // getData() didefinisikan di api.js
+    const data = await getData((main) => {
+      // Simpan arsip yang sudah ada selama data tambahan diperbarui.
+      state.rawData = main.monitoring.concat(state.rawData.filter((row) => String(row.tahun) !== MAIN_DATA_YEAR));
+      state.meta = main.meta;
+      state.isConnected = true;
+      state.isLoading = false;
+      populateFilterOptions();
+      applyFilters();
+      renderDashboardHome();
+      setConnectionBadge("connected");
+      setSkkiLoadingStatus("supplementary");
+    });
+    if (!data.ok) throw new Error("Sumber data SKKI gagal dimuat. Data terakhir tetap dipertahankan.");
     state.rawData = Array.isArray(data.monitoring) ? data.monitoring : [];
     state.progressAI = data.progressAI || { terkontrak: [], tertagih: [], terbayar: [] };
     state.monthlyProgress = Array.isArray(data.monthlyProgress) ? data.monthlyProgress : [];
@@ -307,6 +322,8 @@ async function loadData(showToast = false) {
     setConnectionBadge("disconnected");
     setSkkiLoadingStatus("error");
     showToastMsg("Terjadi kesalahan saat memuat data.", "error");
+  } finally {
+    skkiLoadPending = false;
   }
 }
 
@@ -319,6 +336,7 @@ function setSkkiLoadingStatus(mode) {
   notice.hidden = false;
   if (mode === "loading") text.textContent = "Memuat data…";
   else if (mode === "refreshing") text.textContent = "Memuat data…";
+  else if (mode === "supplementary") text.textContent = "Data utama siap. Memuat arsip, progres, dan data bulanan…";
   else if (mode === "empty") {
     notice.classList.add("is-empty");
     text.textContent = "Data anggaran belum tersedia dari sumber.";

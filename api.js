@@ -484,7 +484,7 @@ async function fetchMainMonitoring() {
   return { monitoring, meta };
 }
 
-async function getData() {
+async function getData(onMainReady) {
   const empty = { ok: false, meta: null, monitoring: [], progressAI: { terkontrak: [], tertagih: [], terbayar: [] }, monthlyProgress: [] };
 
   if (!API_URL) {
@@ -493,10 +493,11 @@ async function getData() {
   }
 
   try {
-    // Data utama, arsip tahun lama, dan Progress AI diambil BERSAMAAN (bukan berurutan)
-    // supaya total waktu loading = request paling lambat, bukan jumlah semuanya.
-    const [main, historicalRows, progressAI, monthlyProgress] = await Promise.all([
-      fetchMainMonitoring(),
+    // Tampilkan tabel utama sebelum menunggu arsip, progres, dan bulanan.
+    // Request tambahan baru dimulai setelah sumber utama berhasil dibaca.
+    const main = await fetchMainMonitoring();
+    if (onMainReady) onMainReady({ ok: true, monitoring: main.monitoring, meta: main.meta });
+    const [historicalRows, progressAI, monthlyProgress] = await Promise.all([
       getHistoricalData(),
       getProgressAI(),
       getMonthlyProgress()
